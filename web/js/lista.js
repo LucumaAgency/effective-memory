@@ -29,6 +29,7 @@ function tarjeta (p) {
       ${p.error ? `<div class="meta" style="color:var(--corte);margin-top:5px;word-break:break-word">${escapar(p.error)}</div>` : ''}
     </div>
     <span class="chip" style="${p.fase === 'error' ? 'color:var(--corte)' : p.fase === 'listo' ? 'color:var(--ok)' : ''}">${FASES[p.fase] || p.fase}</span>
+    <button data-borrar="${p.slug}" title="Borrar el proyecto (el video no se toca)">&#10005;</button>
   </div>`
 }
 
@@ -37,6 +38,11 @@ async function pintar () {
   $('#lista').innerHTML = ps.length
     ? ps.map(tarjeta).join('')
     : '<div class="vacio">Todavía no hay proyectos. Pega la ruta de un video arriba.</div>'
+  document.querySelectorAll('[data-borrar]').forEach(b => b.onclick = async () => {
+    if (!confirm(`Borrar el proyecto "${b.dataset.borrar}"?\n\nSolo se borran los datos de revision. Tu archivo de video no se toca.`)) return
+    await api(`/api/proyectos/${encodeURIComponent(b.dataset.borrar)}`, { method: 'DELETE' })
+    pintar()
+  })
   const activos = ps.some(p => !['listo', 'error', 'sin-ingest'].includes(p.fase))
   clearTimeout(temporizador)
   if (activos) temporizador = setTimeout(pintar, 1500)

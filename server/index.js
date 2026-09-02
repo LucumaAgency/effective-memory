@@ -12,7 +12,23 @@ app.use(express.json({ limit: '2mb' }))
 app.use(express.static(path.join(RAIZ, 'web')))
 
 const ok = (fn) => async (req, res) => {
-  try { await fn(req, res) } catch (e) { res.status(400).json({ error: e.message }) }
+  try {
+    await fn(req, res)
+  } catch (e) {
+    console.error(`[${req.method} ${req.path}]`, e.message)
+    if (res.headersSent) return res.destroy()
+    res.status(400).json({ error: e.message })
+  }
+}
+
+// Un stream roto (archivo movido, pestana cerrada a medias) no debe tumbar el server.
+const enviarStream = (res, stream) => {
+  stream.on('error', e => {
+    console.error('[stream]', e.message)
+    res.headersSent ? res.destroy() : res.status(500).end()
+  })
+  res.on('close', () => stream.destroy())
+  stream.pipe(res)
 }
 const metaDe = (slug) => leerJson(path.join(dirProyecto(slug), 'meta.json'))
 
@@ -42,6 +58,10 @@ app.get('/api/proyectos/:slug', ok(async (req, res) => {
   res.json(d)
 }))
 
+app.delete('/api/proyectos/:slug', ok(async (req, res) => {
+  res.json({ borrado: P.borrar(req.params.slug) })
+}))
+
 app.get('/api/proyectos/:slug/estado', ok(async (req, res) => res.json(estadoIngest(req.params.slug))))
 
 app.post('/api/proyectos/:slug/ingest', ok(async (req, res) => res.json(lanzarIngest(req.params.slug))))
@@ -50,15 +70,18 @@ app.post('/api/proyectos/:slug/ingest', ok(async (req, res) => res.json(lanzarIn
 app.get('/api/proyectos/:slug/video', ok(async (req, res) => {
   const meta = metaDe(req.params.slug)
   if (!meta || !fs.existsSync(meta.videoPath)) return res.status(404).end()
-  const total = fs.statSync(meta.videoPath).size
+  const st = fs.statSync(meta.videoPath)
+  if (!st.isFile()) return res.status(400).json({ error: 'la ruta del proyecto no es un archivo' })
+  const total = st.size
   const tipo = { '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.mkv': 'video/x-matroska' }[path.extname(meta.videoPath).toLowerCase()] || 'video/mp4'
   const rango = req.headers.range
 
   if (!rango) {
     res.writeHead(200, { 'Content-Length': total, 'Content-Type': tipo, 'Accept-Ranges': 'bytes' })
-    return fs.createReadStream(meta.videoPath).pipe(res)
+    return enviarStream(res, fs.createReadStream(meta.videoPath))
   }
   const m = /bytes=(\d*)-(\d*)/.exec(rango)
+  if (!m) return res.status(416).end()
   const desde = m[1] ? Number(m[1]) : 0
   const hasta = m[2] ? Math.min(Number(m[2]), total - 1) : total - 1
   res.writeHead(206, {
@@ -67,7 +90,7 @@ app.get('/api/proyectos/:slug/video', ok(async (req, res) => {
     'Content-Length': hasta - desde + 1,
     'Content-Type': tipo
   })
-  fs.createReadStream(meta.videoPath, { start: desde, end: hasta }).pipe(res)
+  enviarStream(res, fs.createReadStream(meta.videoPath, { start: desde, end: hasta }))
 }))
 
 // Frames del muestreo grueso.
@@ -102,6 +125,10 @@ app.post('/api/proyectos/:slug/pedir-revision', ok(async (req, res) => {
 
 // Boton "Traer entrega"
 app.post('/api/traer', ok(async (_req, res) => res.json(await G.traer())))
+
+// Red de seguridad: preferimos registrar y seguir vivos antes que morir a media edicion.
+process.on('uncaughtException', e => console.error('[no capturado]', e))
+process.on('unhandledRejection', e => console.error('[promesa no capturada]', e))
 
 app.listen(cfg.puerto, () => {
   console.log(`\n  video-review  ->  http://localhost:${cfg.puerto}`)

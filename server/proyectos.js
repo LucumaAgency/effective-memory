@@ -51,8 +51,16 @@ export function entregas (slug) {
 
 export function crear ({ titulo, videoPath }) {
   if (!videoPath) throw new Error('Falta la ruta del video')
-  const limpio = videoPath.trim().replace(/^"|"$/g, '')
-  if (!fs.existsSync(limpio)) throw new Error(`No existe el archivo: ${limpio}`)
+  const limpio = videoPath.trim().replace(/^["']|["']$/g, '').trim()
+  if (!fs.existsSync(limpio)) throw new Error(`No existe esa ruta: ${limpio}`)
+  if (fs.statSync(limpio).isDirectory()) {
+    const dentro = fs.readdirSync(limpio).filter(f => /\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(f))
+    throw new Error(`Eso es una carpeta, no un video. Necesito la ruta del archivo.` +
+      (dentro.length ? ` Videos que veo ahi: ${dentro.slice(0, 6).join(', ')}` : ' No veo videos dentro.'))
+  }
+  if (!/\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(limpio)) {
+    throw new Error(`No parece un video: ${path.basename(limpio)}`)
+  }
 
   const base = slugify(titulo || path.parse(limpio).name)
   const fecha = new Date().toISOString().slice(0, 7)
@@ -70,6 +78,13 @@ export function crear ({ titulo, videoPath }) {
   })
   escribirJson(path.join(dir, 'comentarios.json'), { slug, items: [] })
   return slug
+}
+
+export function borrar (slug) {
+  const dir = dirProyecto(slug)
+  if (!fs.existsSync(dir)) return false
+  fs.rmSync(dir, { recursive: true, force: true })   // solo los datos; el video no se toca
+  return true
 }
 
 export function cargar (slug) {
