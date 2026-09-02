@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>video-review</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/app.css">
+<header>
+  <h1>video-review</h1>
+  <span class="chip" id="chipRepo">…</span>
+  <span class="sep"></span>
+  <button id="btnTraer">Traer entrega</button>
+</header>
+<div class="envoltorio">
+  <div id="aviso"></div>
+  <div class="panel" style="margin-bottom:22px">
+    <h2>Nuevo proyecto</h2>
+    <div class="fila">
+      <input id="titulo" placeholder="Título (opcional)" style="max-width:280px">
+      <input id="ruta" placeholder="Ruta local del video   ej: C:\videos\explainer-01.mp4">
+      <button class="primario" id="btnCrear" style="white-space:nowrap">Crear e ingestar</button>
+    </div>
+    <p class="meta" style="margin:9px 0 0">El video se queda en tu disco. Solo se versionan transcripción, silencios, frames y comentarios.</p>
+  </div>
+  <div id="lista"></div>
+</div>
+<script type="module" src="/js/lista.js"></script>

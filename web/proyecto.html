@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>proyecto · video-review</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/app.css">
+<header>
+  <a href="/">←</a>
+  <h1 id="titulo">…</h1>
+  <span class="chip" id="chipFase"></span>
+  <span class="sep"></span>
+  <button class="primario" id="btnRevision">Pedir revisión</button>
+</header>
+<div class="envoltorio">
+  <div id="aviso"></div>
+  <div class="grid">
+    <div>
+      <video id="video" controls preload="metadata"></video>
+      <div class="pista" id="pista"></div>
+      <div class="reglas"><span id="rActual">0:00</span><span id="rTotal">0:00</span></div>
+
+      <div class="panel" style="margin-top:16px">
+        <h2>Comentar en <span id="tActual" style="color:var(--acento)">0:00</span></h2>
+        <div class="fila">
+          <select id="tipo" style="max-width:150px">
+            <option value="corte">corte</option>
+            <option value="subtitulo">subtítulo</option>
+            <option value="grafico">gráfico</option>
+            <option value="nota" selected>nota</option>
+          </select>
+          <input id="texto" placeholder="Qué hay que hacer aquí…">
+          <button class="primario" id="btnCom" style="white-space:nowrap">Añadir</button>
+        </div>
+        <p class="meta" style="margin:8px 0 0">Atajo: <b>C</b> comenta en el segundo actual · <b>espacio</b> play/pausa · <b>←/→</b> 2s</p>
+      </div>
+
+      <div class="panel" style="margin-top:16px">
+        <h2>Transcripción</h2>
+        <div class="tr" id="tr"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel" style="margin-bottom:16px">
+        <h2>Comentarios</h2>
+        <div id="coms"></div>
+      </div>
+      <div class="panel" style="margin-bottom:16px">
+        <h2>Silencios detectados</h2>
+        <div id="sil" class="meta"></div>
+      </div>
+      <div class="panel">
+        <h2>Entregas</h2>
+        <div id="entregas" class="meta"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="module" src="/js/proyecto.js"></script>

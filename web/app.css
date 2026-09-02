@@ -1,0 +1,74 @@
+:root{
+  --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --linea:#2a2f3a;
+  --texto:#e6e8ee; --suave:#98a0b0; --acento:#4f7cff;
+  --corte:#ff6b5a; --subtitulo:#f5c445; --grafico:#9b6bff; --nota:#4fb3ff;
+  --ok:#3ecf8e;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--texto);
+  font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--acento);text-decoration:none}
+button{font:inherit;cursor:pointer;border:1px solid var(--linea);background:var(--panel2);
+  color:var(--texto);padding:7px 13px;border-radius:7px}
+button:hover{border-color:var(--acento)}
+button.primario{background:var(--acento);border-color:var(--acento);color:#fff}
+button.primario:disabled{opacity:.45;cursor:default}
+input,textarea,select{font:inherit;background:var(--panel2);color:var(--texto);
+  border:1px solid var(--linea);border-radius:7px;padding:8px 10px;width:100%}
+header{display:flex;align-items:center;gap:14px;padding:12px 20px;
+  border-bottom:1px solid var(--linea);background:var(--panel)}
+header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.2px}
+header .sep{flex:1}
+.chip{font-size:12px;color:var(--suave);border:1px solid var(--linea);
+  padding:3px 9px;border-radius:20px}
+.envoltorio{max-width:1240px;margin:0 auto;padding:22px 20px 60px}
+
+/* lista */
+.tarjeta{background:var(--panel);border:1px solid var(--linea);border-radius:11px;
+  padding:15px 17px;margin-bottom:11px;display:flex;align-items:center;gap:16px}
+.tarjeta h3{margin:0 0 4px;font-size:15px}
+.meta{color:var(--suave);font-size:12.5px}
+.barra{height:5px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-top:8px}
+.barra i{display:block;height:100%;background:var(--acento);transition:width .4s}
+
+/* dashboard */
+.grid{display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}}
+video{width:100%;background:#000;border-radius:11px;display:block}
+.panel{background:var(--panel);border:1px solid var(--linea);border-radius:11px;padding:15px}
+.panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.9px;
+  color:var(--suave);margin:0 0 11px}
+
+/* timeline */
+.pista{position:relative;height:56px;background:var(--panel2);border:1px solid var(--linea);
+  border-radius:8px;margin-top:12px;cursor:crosshair;overflow:hidden}
+.pista .silencio{position:absolute;top:0;bottom:0;background:rgba(255,107,90,.16);
+  border-left:1px solid rgba(255,107,90,.4);border-right:1px solid rgba(255,107,90,.4)}
+.pista .marca{position:absolute;top:6px;width:3px;height:26px;border-radius:2px;cursor:pointer}
+.pista .marca:hover{transform:scaleX(2)}
+.pista .cabeza{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none}
+.pista .habla{position:absolute;bottom:6px;height:12px;background:rgba(79,124,255,.35);border-radius:2px}
+.tipo-corte{background:var(--corte)} .tipo-subtitulo{background:var(--subtitulo)}
+.tipo-grafico{background:var(--grafico)} .tipo-nota{background:var(--nota)}
+.reglas{display:flex;justify-content:space-between;color:var(--suave);font-size:11px;margin-top:5px}
+
+/* comentarios */
+.com{border:1px solid var(--linea);border-left:3px solid var(--nota);border-radius:8px;
+  padding:10px 12px;margin-bottom:9px;background:var(--panel2)}
+.com.corte{border-left-color:var(--corte)} .com.subtitulo{border-left-color:var(--subtitulo)}
+.com.grafico{border-left-color:var(--grafico)}
+.com.resuelto{opacity:.45}
+.com .cab{display:flex;gap:9px;align-items:center;margin-bottom:5px}
+.com .t{font-variant-numeric:tabular-nums;color:var(--acento);cursor:pointer;font-weight:600}
+.com .acc{margin-left:auto;display:flex;gap:6px}
+.com .acc button{padding:2px 7px;font-size:11.5px}
+.fila{display:flex;gap:9px;margin-top:9px}
+.vacio{color:var(--suave);text-align:center;padding:26px 10px}
+.aviso{background:#2a2213;border:1px solid #5a4a1e;color:#f5d78e;
+  padding:11px 14px;border-radius:9px;margin-bottom:16px;font-size:13px}
+/* transcripcion */
+.tr{max-height:300px;overflow:auto;font-size:13px}
+.tr p{margin:0 0 7px;cursor:pointer;padding:3px 6px;border-radius:5px}
+.tr p:hover{background:var(--panel2)}
+.tr p.activo{background:rgba(79,124,255,.18)}
+.tr span{color:var(--suave);font-variant-numeric:tabular-nums;margin-right:7px;font-size:11.5px}
