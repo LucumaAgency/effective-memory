@@ -12,6 +12,7 @@ motion graphics. Corre en tu PC, el video nunca se sube a ningún lado.
 winget install Gyan.FFmpeg
 winget install OpenJS.NodeJS.LTS
 pip install faster-whisper
+pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"   # solo si tienes GPU NVIDIA
 
 git clone https://github.com/LucumaAgency/effective-memory.git video-review
 git clone https://github.com/LucumaAgency/video-review-proyectos.git
@@ -27,8 +28,12 @@ Cierra y reabre la terminal después del `winget` para que el PATH tome ffmpeg.
 
 Con una NVIDIA (una 3060 sirve de sobra) `faster-whisper` usa CUDA solo: `npm run doctor`
 te dice si la detectó. Un video de 5 minutos con el modelo `medium` transcribe en ~20-30 s.
-En CPU son varios minutos, pero funciona igual. Si CUDA falla, necesitas cuBLAS y cuDNN
-para CUDA 12; también puedes forzar `WHISPER_DEVICE=cpu` en `.env`.
+En CPU son varios minutos, pero funciona igual.
+
+CUDA necesita además cuBLAS y cuDNN, que van en el `pip install` de arriba. En Windows esas
+DLL no quedan en el PATH, así que `scripts/transcribir.py` registra sus carpetas al arrancar.
+Si la GPU falla de todas formas, el script **reintenta solo en CPU** en vez de abortar el
+ingest, y te lo dice en el log. Para forzar CPU y no esperar el reintento: `WHISPER_DEVICE=cpu`.
 
 ## Uso
 

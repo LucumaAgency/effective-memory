@@ -94,8 +94,17 @@ export async function frameEn (slug, t, videoPath) {
   return destino
 }
 
+// De un traceback de Python solo interesa la ultima linea con sentido.
+function resumirError (mensaje) {
+  const lineas = String(mensaje).split(/\r?\n/).map(l => l.trim())
+    .filter(l => l && !l.startsWith('File "') && !l.startsWith('~') && !l.startsWith('^'))
+  const util = lineas.reverse().find(l => /Error|error|fallo|Falta/.test(l))
+  return util || lineas[0] || mensaje
+}
+
 async function transcribir (videoPath, slug) {
   const salida = path.join(dirProyecto(slug), 'transcript.json')
+  try {
   await correr(cfg.python, [
     path.join(RAIZ, 'scripts', 'transcribir.py'),
     videoPath, salida,
@@ -106,6 +115,9 @@ async function transcribir (videoPath, slug) {
     const m = t.match(/PROGRESO\s+([\d.]+)/)
     if (m) marcar(slug, { fase: 'transcribiendo', progreso: 40 + Number(m[1]) * 0.55 })
   } })
+  } catch (e) {
+    throw new Error(`Transcripcion: ${resumirError(e.message)}`)
+  }
   return leerJson(salida)
 }
 

@@ -26,6 +26,20 @@ try {
   linea(true, 'faster-whisper', gpus > 0 ? `${gpus} GPU CUDA detectada` : 'solo CPU (mas lento)')
 } catch { linea(false, 'faster-whisper', 'pip install faster-whisper') }
 
+// Las DLL de CUDA que pip instala no quedan en el PATH; el script las registra solo,
+// pero aqui avisamos si ni siquiera estan instaladas.
+try {
+  const { out } = await correr(cfg.python, ['-c',
+    'import nvidia,os;print(",".join(sorted(p for r in nvidia.__path__ for p in os.listdir(r) if os.path.isdir(os.path.join(r,p,"bin")))))'])
+  const paquetes = out.trim()
+  const faltan = ['cublas', 'cudnn'].filter(k => !paquetes.includes(k))
+  linea(faltan.length === 0, 'librerias CUDA', faltan.length
+    ? `falta ${faltan.join(' y ')}  ->  pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"`
+    : paquetes)
+} catch {
+  linea(false, 'librerias CUDA', 'pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"  (sin esto va por CPU)')
+}
+
 const hayRepo = fs.existsSync(cfg.dataRepo)
 linea(hayRepo, 'repo de datos', cfg.dataRepo)
 if (hayRepo) {
