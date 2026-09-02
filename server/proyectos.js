@@ -44,7 +44,8 @@ export function entregas (slug) {
     .map(d => ({
       version: d.name,
       archivos: fs.readdirSync(path.join(dir, d.name)),
-      nota: leerJson(path.join(dir, d.name, 'nota.json'), null)
+      nota: leerJson(path.join(dir, d.name, 'nota.json'), null),
+      plan: leerJson(path.join(dir, d.name, 'clips.json'), null)
     }))
     .sort((a, b) => a.version.localeCompare(b.version))
 }

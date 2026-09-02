@@ -61,3 +61,35 @@ Cada segmento lleva `razon` para que corrijas el criterio, no el resultado.
 ## Frames
 - `frames/m0000.jpg` … muestreo cada `FRAME_CADA` segundos (índice en `frames.json`).
 - `frames/t134_50.jpg` … frame exacto pedido bajo demanda vía `GET /api/proyectos/:slug/frame?t=134.5`.
+
+## entregas/vN/clips.json  (lo escribo yo)
+
+Plan de clips verticales para TikTok. Los tiempos van en coordenadas del **original**;
+la app los rebasa sola al renderizar cada clip.
+
+```json
+{
+  "formato": { "ancho": 1080, "alto": 1920, "disposicion": "apilado" },
+  "fuente": {
+    "contenido": { "y": 178, "alto": 362 },
+    "personas": [
+      { "nombre": "Cynthia Seinfeld", "x": 105, "ancho": 407 },
+      { "nombre": "Fernando Velarde", "x": 736, "ancho": 407 }
+    ]
+  },
+  "estilo": { "tamano": 60, "maxLinea": 26, "margenV": 150 },
+  "correcciones": [["Talero", "Tablero"]],
+  "clips": [
+    { "id": "c01", "titulo": "Frank Gehry en el Perú",
+      "in": 405.2, "out": 430.0,
+      "gancho": "Frank Gehry en el Perú hubiera sido miserable",
+      "razon": "nombre reconocible + afirmación tajante en los primeros 2 segundos" }
+  ]
+}
+```
+
+- `contenido` recorta el banner superior y la barra inferior del video fuente.
+- `personas[].x` y `.ancho` son el recorte horizontal de cada cara, en píxeles del original.
+- `disposicion`: `apilado` (dos cabezas, una encima de otra) o `recorte` (una sola persona
+  a pantalla completa, eligiendo cuál con `"persona": 0|1` en el clip).
+- `correcciones` son pares `[patrón, reemplazo]` que se aplican al texto del subtítulo.

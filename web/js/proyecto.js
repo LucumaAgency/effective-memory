@@ -28,7 +28,7 @@ async function cargar () {
     setTimeout(cargar, 2000)
   } else $('#aviso').innerHTML = ''
 
-  pintarPista(); pintarComs(); pintarSilencios(); pintarTranscripcion(); pintarEntregas()
+  pintarPista(); pintarComs(); pintarSilencios(); pintarTranscripcion(); pintarEntregas(); pintarClips()
   seguirRender().catch(() => {})
 }
 
@@ -140,6 +140,69 @@ function pintarEntregas () {
       seguirRender()
     } catch (e) { alert(e.message); b.disabled = false }
   })
+}
+
+function pintarClips () {
+  const conPlan = (D.entregas || []).filter(e => e.plan?.clips?.length)
+  const panel = $('#panelClips')
+  if (!conPlan.length) { panel.style.display = 'none'; return }
+  panel.style.display = ''
+
+  $('#clips').innerHTML = conPlan.map(e => `
+    <div class="meta" style="margin-bottom:8px">${escapar(e.version)} · ${e.plan.clips.length} clips
+      <button data-todos="${escapar(e.version)}" style="padding:3px 9px;font-size:12px;margin-left:7px">Renderizar todos</button></div>
+    ${e.plan.clips.map(c => `
+      <div class="clip" id="clip_${escapar(c.id)}">
+        <b>${escapar(c.titulo || c.id)}</b>
+        <div class="meta"><span class="t" data-t="${c.in}">${mmss(c.in)} → ${mmss(c.out)}</span> · ${Math.round(c.out - c.in)}s</div>
+        ${c.gancho ? `<div class="gancho">“${escapar(c.gancho)}”</div>` : ''}
+        ${c.razon ? `<div class="razon">${escapar(c.razon)}</div>` : ''}
+        <div class="pie">
+          <button data-clip="${escapar(c.id)}" data-entrega="${escapar(e.version)}">Renderizar</button>
+          <span class="meta" data-listo="${escapar(c.id)}"></span>
+        </div>
+      </div>`).join('')}`).join('')
+
+  $('#clips').querySelectorAll('.t').forEach(el =>
+    el.onclick = () => { $('#fuente').value = ''; cambiarFuente(); video.currentTime = Number(el.dataset.t); video.play() })
+
+  const lanzar = (entrega, ids) => api(`/api/proyectos/${slug}/clips`, {
+    method: 'POST', body: JSON.stringify({ entrega, ids })
+  }).then(seguirClips).catch(e => alert(e.message))
+
+  $('#clips').querySelectorAll('[data-clip]').forEach(b =>
+    b.onclick = () => lanzar(b.dataset.entrega, [b.dataset.clip]))
+  $('#clips').querySelectorAll('[data-todos]').forEach(b =>
+    b.onclick = () => lanzar(b.dataset.todos, null))
+
+  seguirClips().catch(() => {})
+}
+
+let temporizadorClips = null
+async function seguirClips () {
+  clearTimeout(temporizadorClips)
+  const r = await api(`/api/proyectos/${slug}/clips/estado`)
+  const caja = $('#clipsEstado')
+
+  if (r.fase === 'renderizando') {
+    caja.innerHTML = `<div>Renderizando ${escapar(r.actual || '')} (${r.i + 1} de ${r.total})…</div>
+      <div class="barra"><i style="width:${((r.i) / r.total) * 100}%"></i></div>`
+    temporizadorClips = setTimeout(seguirClips, 1200)
+  } else if (r.fase === 'error') {
+    caja.innerHTML = `<div style="color:var(--corte)">Falló en ${escapar(r.actual || '')}: ${escapar(r.error || '')}</div>`
+  } else caja.innerHTML = ''
+
+  $('#clips').querySelectorAll('[data-clip],[data-todos]').forEach(b => { b.disabled = r.fase === 'renderizando' })
+
+  for (const hecho of r.hechos || []) {
+    const caja = document.getElementById(`clip_${hecho.id}`)
+    if (!caja || caja.querySelector('video')) continue
+    caja.querySelector(`[data-listo="${hecho.id}"]`).textContent = `${(hecho.bytes / 1048576).toFixed(1)} MB`
+    const v = document.createElement('video')
+    v.className = 'vertical'; v.controls = true; v.preload = 'none'
+    v.src = `/api/proyectos/${encodeURIComponent(slug)}/clips/video?archivo=${encodeURIComponent(hecho.archivo)}`
+    caja.appendChild(v)
+  }
 }
 
 let temporizadorRender = null

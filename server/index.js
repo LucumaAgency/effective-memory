@@ -6,6 +6,7 @@ import * as P from './proyectos.js'
 import { lanzarIngest, estadoIngest, frameEn } from './ingest.js'
 import * as G from './git.js'
 import * as R from './render.js'
+import * as C from './clips.js'
 import { leerJson } from './util.js'
 
 const app = express()
@@ -104,6 +105,17 @@ app.post('/api/proyectos/:slug/render', ok(async (req, res) => {
 app.get('/api/proyectos/:slug/render/estado', ok(async (req, res) => {
   res.json({ ...R.estadoRender(req.params.slug), renders: R.listarRenders(req.params.slug) })
 }))
+// --- clips verticales ---
+app.post('/api/proyectos/:slug/clips', ok(async (req, res) => {
+  res.json(C.renderizarClips(req.params.slug, req.body || {}))
+}))
+app.get('/api/proyectos/:slug/clips/estado', ok(async (req, res) => {
+  res.json({ ...C.estadoClips(req.params.slug), hechos: C.listarClipsRenderizados(req.params.slug) })
+}))
+app.get('/api/proyectos/:slug/clips/video', ok(async (req, res) => {
+  servirVideo(req, res, path.join(C.dirClips(req.params.slug), path.basename(req.query.archivo || '')))
+}))
+
 app.get('/api/proyectos/:slug/render/video', ok(async (req, res) => {
   servirVideo(req, res, path.join(R.dirRenders(req.params.slug), path.basename(req.query.archivo || '')))
 }))
