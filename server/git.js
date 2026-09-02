@@ -9,10 +9,10 @@ export async function estadoRepo () {
     const { out: sucio } = await git(['status', '--porcelain'])
     let atras = 0
     try {
-      await git(['fetch', '--quiet'])
-      const { out } = await git(['rev-list', '--count', 'HEAD..@{u}'])
+      await git(['fetch', '--quiet', 'origin', rama.trim()])
+      const { out } = await git(['rev-list', '--count', 'HEAD..FETCH_HEAD'])
       atras = Number(out.trim()) || 0
-    } catch { /* sin upstream o sin red */ }
+    } catch { /* sin remoto o sin red */ }
     return {
       ok: true,
       rama: rama.trim(),
@@ -45,16 +45,21 @@ async function ramaActual () {
 }
 
 // Boton "Traer entrega".
-// Explicito a proposito: un "git pull" a secas depende de la configuracion de
-// tracking del clon y falla con "cannot fast-forward to multiple branches"
-// cuando esa configuracion apunta a mas de una rama.
+// Deliberadamente NO usamos "git pull": su resolucion de que fusionar depende de
+// la configuracion de tracking del clon y falla con "cannot fast-forward to
+// multiple branches" cuando esa configuracion apunta a mas de una rama.
+// fetch + merge FETCH_HEAD nombra exactamente un commit y no deja lugar a dudas.
 export async function traer () {
   const rama = await ramaActual()
   try {
-    const { out } = await git(['pull', '--ff-only', 'origin', rama])
-    return { salida: out.trim() || 'Ya estabas al dia.', rama }
+    await git(['fetch', 'origin', rama])
+    const { out: antes } = await git(['rev-parse', 'HEAD'])
+    const { out: remoto } = await git(['rev-parse', 'FETCH_HEAD'])
+    if (antes.trim() === remoto.trim()) return { salida: 'Ya estabas al dia.', rama }
+    const { out } = await git(['merge', '--ff-only', 'FETCH_HEAD'])
+    return { salida: out.trim() || 'Actualizado.', rama }
   } catch (e) {
-    if (/diverge|non-fast-forward|not possible to fast-forward/i.test(e.message)) {
+    if (/diverge|non-fast-forward|not possible to fast-forward|refusing to merge/i.test(e.message)) {
       throw new Error(`Tu copia de "${rama}" y la del servidor se separaron. ` +
         'Sube lo tuyo primero con "Pedir revision", o resuelvelo a mano con: git pull --rebase')
     }
