@@ -93,3 +93,18 @@ la app los rebasa sola al renderizar cada clip.
 - `disposicion`: `apilado` (dos cabezas, una encima de otra) o `recorte` (una sola persona
   a pantalla completa, eligiendo cuál con `"persona": 0|1` en el clip).
 - `correcciones` son pares `[patrón, reemplazo]` que se aplican al texto del subtítulo.
+
+## correcciones.json  (raíz del proyecto)
+
+Nombres propios y términos que el reconocimiento de voz no puede acertar. Se escriben una
+vez y valen para todos los subtítulos que se generen después, sin repetirlos en cada entrega.
+
+```json
+{ "reemplazos": [
+    ["Talero", "Tablero"],
+    ["Demás Consultoría", "Ve-Más Consultoría"]
+] }
+```
+
+Cada par es `[patrón, reemplazo]`; el patrón es una expresión regular de JavaScript.
+La transcripción original **no se toca**: es la salida cruda de Whisper y sirve de referencia.

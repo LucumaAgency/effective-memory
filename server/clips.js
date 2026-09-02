@@ -19,6 +19,17 @@ export function listarClipsRenderizados (slug) {
   }))
 }
 
+/**
+ * Correcciones de texto del proyecto (nombres propios que el ASR no puede saber)
+ * mas las propias del plan. Se escriben una vez en correcciones.json y valen
+ * para todo lo que se genere despues.
+ */
+export function correccionesDe (slug, plan = {}) {
+  const propias = leerJson(path.join(dirProyecto(slug), 'correcciones.json'), null)
+  const lista = Array.isArray(propias) ? propias : (propias?.reemplazos || [])
+  return [...lista, ...(plan.correcciones || [])]
+}
+
 /** Lee clips.json de una entrega. */
 export function leerPlan (slug, entrega) {
   const f = path.join(dirProyecto(slug), 'entregas', entrega, 'clips.json')
@@ -59,7 +70,7 @@ async function renderizarUno (slug, plan, clip, transcript, meta) {
   const { texto } = generarAss(transcript, {
     desde: clip.in, hasta: clip.out, ancho, alto, origen: clip.in,
     estilo: { ...(plan.estilo || {}), ...(clip.estilo || {}) },
-    correcciones: plan.correcciones || []
+    correcciones: correccionesDe(slug, plan)
   })
   fs.writeFileSync(ass, texto, 'utf8')
 
