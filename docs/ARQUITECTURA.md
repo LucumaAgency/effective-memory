@@ -1,5 +1,8 @@
 # Arquitectura
 
+> El *porqué* de cada decisión y el historial del proyecto están en
+> [BITACORA.md](BITACORA.md). Aquí solo está el *qué*.
+
 ## Por qué así
 
 El video de 5 minutos pesa cientos de MB y **nunca sale del PC**. Lo que viaja a GitHub es su
@@ -43,9 +46,11 @@ produjo. Sin esto, iterar tres veces sería irreversible.
 ## Fases
 
 - **1 · circuito** (hecho): ingest, dashboard, comentarios, push/pull.
-- **2 · cortes**: aplicar `cortes.json` con ffmpeg, comparar versiones en el player.
-- **3 · subtítulos**: `.ass` estilizado, preview en el player, quemado al render.
-- **4 · motion graphics**: overlays HTML/CSS grabados con Puppeteer a PNG con alpha, compuestos con ffmpeg.
+- **3 · subtítulos** (hecho): `.ass` estilizado, preview quemada desde la UI.
+- **clips verticales** (hecho): `clips.json` → 1080x1920 con subtítulos y comentarios propios.
+- **2 · cortes** (pendiente): aplicar `cortes.json` con ffmpeg, comparar versiones en el player.
+- **4 · motion graphics** (pendiente): overlays HTML/CSS grabados con Puppeteer a PNG con alpha,
+  compuestos con ffmpeg.
 
 ## Endpoints
 

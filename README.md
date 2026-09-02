@@ -4,7 +4,10 @@ Plataforma local para revisar video con ayuda de Claude: subtítulos, cortes de 
 motion graphics. Corre en tu PC, el video nunca se sube a ningún lado.
 
 > Datos de proyectos: repo privado aparte, [`video-review-proyectos`](https://github.com/LucumaAgency/video-review-proyectos).
-> Diseño en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) · formatos en [`docs/ESQUEMAS.md`](docs/ESQUEMAS.md).
+>
+> - [`docs/BITACORA.md`](docs/BITACORA.md) — **empieza por aquí**: por qué está hecho así, qué se decidió y qué se rompió
+> - [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — el diseño y los endpoints
+> - [`docs/ESQUEMAS.md`](docs/ESQUEMAS.md) — el formato de cada archivo
 
 ## Instalación en Windows
 
