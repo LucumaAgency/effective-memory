@@ -157,7 +157,7 @@ function pintarClips () {
     <div class="meta" style="margin-bottom:8px">${escapar(e.version)} · ${e.plan.clips.length} clips
       <button data-todos="${escapar(e.version)}" style="padding:3px 9px;font-size:12px;margin-left:7px">Renderizar todos</button></div>
     ${e.plan.clips.map(c => `
-      <div class="clip" id="clip_${escapar(c.id)}">
+      <div class="clip" id="clip_${escapar(e.version)}__${escapar(c.id)}">
         <b>${escapar(c.titulo || c.id)}</b>
         <div class="meta"><span class="t" data-t="${c.in}">${mmss(c.in)} → ${mmss(c.out)}</span> · ${Math.round(c.out - c.in)}s</div>
         ${c.gancho ? `<div class="gancho">“${escapar(c.gancho)}”</div>` : ''}
@@ -195,7 +195,7 @@ function pintarClips () {
     if (!texto) return
     // El tiempo se guarda en coordenadas del ORIGINAL: inicio del clip + lo que
     // marque su reproductor. Asi el comentario tambien cae en la timeline grande.
-    const reproductor = document.querySelector(`#clip_${id} video`)
+    const reproductor = document.querySelector(`[id$="__${id}"] video`)
     const dentro = reproductor ? reproductor.currentTime : 0
     await api(`/api/proyectos/${slug}/comentarios`, {
       method: 'POST',
@@ -256,9 +256,10 @@ async function seguirClips () {
   $('#clips').querySelectorAll('[data-clip],[data-todos]').forEach(b => { b.disabled = r.fase === 'renderizando' })
 
   for (const hecho of r.hechos || []) {
-    const caja = document.getElementById(`clip_${hecho.id}`)
+    const caja = document.getElementById(`clip_${hecho.clave}`)
     if (!caja || caja.querySelector('video')) continue
-    caja.querySelector(`[data-listo="${hecho.id}"]`).textContent = `${(hecho.bytes / 1048576).toFixed(1)} MB`
+    const etiqueta = caja.querySelector('[data-listo]')
+    if (etiqueta) etiqueta.textContent = `${(hecho.bytes / 1048576).toFixed(1)} MB`
     const v = document.createElement('video')
     v.className = 'vertical'; v.controls = true; v.preload = 'none'
     v.src = `/api/proyectos/${encodeURIComponent(slug)}/clips/video?archivo=${encodeURIComponent(hecho.archivo)}`

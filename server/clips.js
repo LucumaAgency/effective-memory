@@ -14,9 +14,19 @@ export const estadoClips = (slug) => cola.get(slug) || { fase: 'inactivo' }
 export function listarClipsRenderizados (slug) {
   const dir = dirClips(slug)
   if (!fs.existsSync(dir)) return []
-  return fs.readdirSync(dir).filter(f => f.endsWith('.mp4')).map(f => ({
-    archivo: f, id: f.replace(/\.mp4$/, ''), bytes: fs.statSync(path.join(dir, f)).size
-  }))
+  // El nombre lleva la entrega delante: los ids se repiten entre entregas y
+  // sin esto la v3 pisaria los renders de la v2.
+  return fs.readdirSync(dir).filter(f => f.endsWith('.mp4')).map(f => {
+    const base = f.replace(/\.mp4$/, '')
+    const i = base.indexOf('__')
+    return {
+      archivo: f,
+      clave: base,
+      entrega: i > 0 ? base.slice(0, i) : null,
+      id: i > 0 ? base.slice(i + 2) : base,
+      bytes: fs.statSync(path.join(dir, f)).size
+    }
+  })
 }
 
 /**
@@ -60,13 +70,16 @@ function construirFiltro (plan, clip) {
   return `${partes.join(';')};[p0][p1]vstack=inputs=2[v]`
 }
 
-async function renderizarUno (slug, plan, clip, transcript, meta) {
+const claveDe = (entrega, id) => `${entrega}__${id}`
+
+async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
   const dir = dirClips(slug)
   fs.mkdirSync(dir, { recursive: true })
   const { ancho = 1080, alto = 1920 } = plan.formato || {}
 
   // .ass propio del clip, con los tiempos rebasados a su inicio
-  const ass = path.join(dir, `${clip.id}.ass`)
+  const clave = claveDe(entrega, clip.id)
+  const ass = path.join(dir, `${clave}.ass`)
   const { texto } = generarAss(transcript, {
     desde: clip.in, hasta: clip.out, ancho, alto, origen: clip.in,
     estilo: { ...(plan.estilo || {}), ...(clip.estilo || {}) },
@@ -74,8 +87,8 @@ async function renderizarUno (slug, plan, clip, transcript, meta) {
   })
   fs.writeFileSync(ass, texto, 'utf8')
 
-  const salida = path.join(dir, `${clip.id}.mp4`)
-  const filtro = `${construirFiltro(plan, clip)};[v]ass=${clip.id}.ass[vout]`
+  const salida = path.join(dir, `${clave}.mp4`)
+  const filtro = `${construirFiltro(plan, clip)};[v]ass=${clave}.ass[vout]`
   const args = [
     '-hide_banner', '-loglevel', 'error', '-y',
     '-ss', String(clip.in), '-t', String(Math.max(0.5, clip.out - clip.in)),
@@ -110,14 +123,14 @@ export function renderizarClips (slug, { entrega, ids = null }) {
   const lista = (plan.clips || []).filter(c => !ids || ids.includes(c.id))
   if (!lista.length) throw new Error('no hay clips que renderizar')
 
-  cola.set(slug, { fase: 'renderizando', i: 0, total: lista.length, actual: lista[0].id })
+  cola.set(slug, { fase: 'renderizando', i: 0, total: lista.length, actual: lista[0].id, entrega })
   ;(async () => {
     for (let i = 0; i < lista.length; i++) {
-      cola.set(slug, { fase: 'renderizando', i, total: lista.length, actual: lista[i].id })
+      cola.set(slug, { fase: 'renderizando', i, total: lista.length, actual: lista[i].id, entrega })
       try {
-        await renderizarUno(slug, plan, lista[i], transcript, meta)
+        await renderizarUno(slug, plan, lista[i], transcript, meta, entrega)
       } catch (e) {
-        cola.set(slug, { fase: 'error', i, total: lista.length, actual: lista[i].id, error: e.message })
+        cola.set(slug, { fase: 'error', i, total: lista.length, actual: lista[i].id, entrega, error: e.message })
         return
       }
     }
