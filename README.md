@@ -50,6 +50,9 @@ Abre `http://localhost:5180`.
 3. **Pedir revisión** sube el contexto al repo de datos.
 4. Claude lo lee, trabaja y devuelve una entrega en `entregas/vN/`.
 5. **Traer entrega** hace el pull.
+6. En el panel de Entregas, **Ver preview** quema los subtítulos sobre el tramo que elijas
+   y lo deja reproducible en el mismo player. El selector de arriba alterna entre el
+   original y cada preview.
 
 Atajos: `espacio` play/pausa · `←/→` 2 s · `C` comentar en el segundo actual.
 
@@ -65,9 +68,12 @@ Atajos: `espacio` play/pausa · `←/→` 2 s · `C` comentar en el segundo actu
 | `SILENCIO_DB` | -32 | umbral de silencio; sube a -26 si tu audio tiene ruido de fondo |
 | `SILENCIO_MIN` | 0.35 | duración mínima para contar como silencio |
 
+Las previews se guardan en `<DATA_REPO>/renders/<proyecto>/` y están fuera del control de
+versiones: son binarios y se regeneran cuando haga falta.
+
 ## Estado
 
 - **Fase 1 · circuito completo** — listo: ingest, dashboard, comentarios, push/pull.
+- **Fase 3 · subtítulos** — preview funcionando: quemado de `.ass`/`.srt` desde la UI.
 - Fase 2 · aplicar cortes con ffmpeg — pendiente.
-- Fase 3 · subtítulos `.ass` — pendiente.
 - Fase 4 · motion graphics HTML/CSS → overlay — pendiente.

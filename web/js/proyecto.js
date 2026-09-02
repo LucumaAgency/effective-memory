@@ -13,7 +13,7 @@ async function cargar () {
   duracion = D.meta?.duracion || video.duration || 0
   $('#titulo').textContent = D.meta?.titulo || slug
   $('#chipFase').textContent = FASES[D.estado.fase] || D.estado.fase
-  if (!video.src) video.src = `/api/proyectos/${encodeURIComponent(slug)}/video`
+  if (!video.dataset.fuente) cambiarFuente()
   $('#rTotal').textContent = mmss(duracion)
 
   if (D.estado.fase === 'error') {
@@ -29,6 +29,7 @@ async function cargar () {
   } else $('#aviso').innerHTML = ''
 
   pintarPista(); pintarComs(); pintarSilencios(); pintarTranscripcion(); pintarEntregas()
+  seguirRender().catch(() => {})
 }
 
 function pintarPista () {
@@ -104,15 +105,90 @@ function pintarTranscripcion () {
 }
 
 function pintarEntregas () {
-  $('#entregas').innerHTML = D.entregas?.length
-    ? D.entregas.map(e => `<div style="margin-bottom:7px"><b style="color:var(--texto)">${escapar(e.version)}</b>
-        <div>${e.archivos.map(escapar).join(' · ')}</div>
-        ${e.nota?.resumen ? `<div style="margin-top:3px">${escapar(e.nota.resumen)}</div>` : ''}</div>`).join('')
-    : 'Ninguna todavía. Pide una revisión y luego usa “Traer entrega” en la portada.'
+  if (!D.entregas?.length) {
+    $('#entregas').innerHTML = 'Ninguna todavía. Pide una revisión y luego usa “Traer entrega” en la portada.'
+    return
+  }
+  $('#entregas').innerHTML = D.entregas.map(e => {
+    const tieneSubs = e.archivos.some(a => a.endsWith('.ass') || a.endsWith('.srt'))
+    return `<div style="margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--linea)">
+      <b style="color:var(--texto)">${escapar(e.version)}</b>
+      <div>${e.archivos.map(escapar).join(' · ')}</div>
+      ${e.nota?.resumen ? `<div style="margin-top:4px">${escapar(e.nota.resumen)}</div>` : ''}
+      ${e.nota?.dudas?.length ? `<div style="margin-top:6px;color:var(--subtitulo)">Dudas:<ul style="margin:3px 0 0;padding-left:17px">${
+        e.nota.dudas.map(d => `<li>${escapar(d)}</li>`).join('')}</ul></div>` : ''}
+      ${tieneSubs ? `<div class="fila" style="margin-top:9px">
+        <input type="number" id="d_${e.version}" value="0" min="0" style="max-width:72px" title="desde (s)">
+        <input type="number" id="h_${e.version}" value="66" min="1" style="max-width:72px" title="hasta (s)">
+        <button data-render="${e.version}" style="white-space:nowrap">Ver preview</button>
+      </div>` : ''}
+    </div>`
+  }).join('')
+
+  $('#entregas').querySelectorAll('[data-render]').forEach(b => b.onclick = async () => {
+    const v = b.dataset.render
+    b.disabled = true
+    try {
+      await api(`/api/proyectos/${slug}/render`, {
+        method: 'POST',
+        body: JSON.stringify({
+          entrega: v,
+          desde: Number($(`#d_${v}`).value) || 0,
+          hasta: Number($(`#h_${v}`).value) || null
+        })
+      })
+      seguirRender()
+    } catch (e) { alert(e.message); b.disabled = false }
+  })
 }
+
+let temporizadorRender = null
+async function seguirRender () {
+  clearTimeout(temporizadorRender)
+  const r = await api(`/api/proyectos/${slug}/render/estado`)
+  const caja = $('#renderEstado')
+
+  if (r.fase === 'renderizando') {
+    caja.innerHTML = `<div>Renderizando ${escapar(r.archivo || '')}…</div>
+      <div class="barra"><i style="width:${r.progreso || 0}%"></i></div>`
+    temporizadorRender = setTimeout(seguirRender, 900)
+  } else if (r.fase === 'error') {
+    caja.innerHTML = `<div style="color:var(--corte)">Falló el render: ${escapar(r.error || '')}</div>`
+  } else if (r.fase === 'listo') {
+    caja.innerHTML = `<div style="color:var(--ok)">Listo: ${escapar(r.archivo)}</div>`
+  } else caja.innerHTML = ''
+
+  pintarFuentes(r.renders || [], r.fase === 'listo' ? r.archivo : null)
+  $('#entregas').querySelectorAll('[data-render]').forEach(b => { b.disabled = r.fase === 'renderizando' })
+}
+
+function pintarFuentes (renders, autoseleccionar) {
+  const sel = $('#fuente')
+  const actual = sel.value
+  sel.innerHTML = '<option value="">Video original</option>' +
+    renders.map(r => `<option value="${escapar(r.archivo)}">preview · ${escapar(r.archivo)} (${(r.bytes / 1048576).toFixed(1)} MB)</option>`).join('')
+  const elegido = autoseleccionar && autoseleccionar !== actual ? autoseleccionar : actual
+  if ([...sel.options].some(o => o.value === elegido)) sel.value = elegido
+  cambiarFuente()
+}
+
+function cambiarFuente () {
+  const archivo = $('#fuente').value
+  const nueva = archivo
+    ? `/api/proyectos/${encodeURIComponent(slug)}/render/video?archivo=${encodeURIComponent(archivo)}`
+    : `/api/proyectos/${encodeURIComponent(slug)}/video`
+  if (video.dataset.fuente === nueva) return
+  video.dataset.fuente = nueva
+  video.src = nueva
+  $('#notaFuente').textContent = archivo
+    ? 'La preview empieza en 0:00 aunque cubra otro tramo del original.'
+    : ''
+}
+$('#fuente').onchange = cambiarFuente
 
 // --- interaccion ---
 video.addEventListener('timeupdate', () => {
+  if ($('#fuente').value) { $('#rActual').textContent = $('#tActual').textContent = mmss(video.currentTime); return }
   const c = document.getElementById('cabeza')
   if (c) c.style.left = pct(video.currentTime) + '%'
   $('#rActual').textContent = $('#tActual').textContent = mmss(video.currentTime)

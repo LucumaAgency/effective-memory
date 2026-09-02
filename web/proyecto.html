@@ -15,6 +15,10 @@
   <div id="aviso"></div>
   <div class="grid">
     <div>
+      <div class="fila" style="margin-bottom:9px;align-items:center">
+        <select id="fuente" style="max-width:340px"><option value="">Video original</option></select>
+        <span class="meta" id="notaFuente"></span>
+      </div>
       <video id="video" controls preload="metadata"></video>
       <div class="pista" id="pista"></div>
       <div class="reglas"><span id="rActual">0:00</span><span id="rTotal">0:00</span></div>
@@ -52,6 +56,7 @@
       <div class="panel">
         <h2>Entregas</h2>
         <div id="entregas" class="meta"></div>
+        <div id="renderEstado" class="meta" style="margin-top:10px"></div>
       </div>
     </div>
   </div>

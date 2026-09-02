@@ -5,6 +5,7 @@ import { cfg, RAIZ, dirProyecto, dirProyectos } from './config.js'
 import * as P from './proyectos.js'
 import { lanzarIngest, estadoIngest, frameEn } from './ingest.js'
 import * as G from './git.js'
+import * as R from './render.js'
 import { leerJson } from './util.js'
 
 const app = express()
@@ -67,18 +68,17 @@ app.get('/api/proyectos/:slug/estado', ok(async (req, res) => res.json(estadoIng
 app.post('/api/proyectos/:slug/ingest', ok(async (req, res) => res.json(lanzarIngest(req.params.slug))))
 
 // Video servido desde el disco local, con soporte de Range para que el seek sea inmediato.
-app.get('/api/proyectos/:slug/video', ok(async (req, res) => {
-  const meta = metaDe(req.params.slug)
-  if (!meta || !fs.existsSync(meta.videoPath)) return res.status(404).end()
-  const st = fs.statSync(meta.videoPath)
-  if (!st.isFile()) return res.status(400).json({ error: 'la ruta del proyecto no es un archivo' })
+function servirVideo (req, res, archivo) {
+  if (!archivo || !fs.existsSync(archivo)) return res.status(404).end()
+  const st = fs.statSync(archivo)
+  if (!st.isFile()) return res.status(400).json({ error: 'esa ruta no es un archivo' })
   const total = st.size
-  const tipo = { '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.mkv': 'video/x-matroska' }[path.extname(meta.videoPath).toLowerCase()] || 'video/mp4'
+  const tipo = { '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.mkv': 'video/x-matroska' }[path.extname(archivo).toLowerCase()] || 'video/mp4'
   const rango = req.headers.range
 
   if (!rango) {
     res.writeHead(200, { 'Content-Length': total, 'Content-Type': tipo, 'Accept-Ranges': 'bytes' })
-    return enviarStream(res, fs.createReadStream(meta.videoPath))
+    return enviarStream(res, fs.createReadStream(archivo))
   }
   const m = /bytes=(\d*)-(\d*)/.exec(rango)
   if (!m) return res.status(416).end()
@@ -90,7 +90,22 @@ app.get('/api/proyectos/:slug/video', ok(async (req, res) => {
     'Content-Length': hasta - desde + 1,
     'Content-Type': tipo
   })
-  enviarStream(res, fs.createReadStream(meta.videoPath, { start: desde, end: hasta }))
+  enviarStream(res, fs.createReadStream(archivo, { start: desde, end: hasta }))
+}
+
+app.get('/api/proyectos/:slug/video', ok(async (req, res) => {
+  servirVideo(req, res, metaDe(req.params.slug)?.videoPath)
+}))
+
+// --- previews renderizadas ---
+app.post('/api/proyectos/:slug/render', ok(async (req, res) => {
+  res.json(R.renderizar(req.params.slug, req.body || {}))
+}))
+app.get('/api/proyectos/:slug/render/estado', ok(async (req, res) => {
+  res.json({ ...R.estadoRender(req.params.slug), renders: R.listarRenders(req.params.slug) })
+}))
+app.get('/api/proyectos/:slug/render/video', ok(async (req, res) => {
+  servirVideo(req, res, path.join(R.dirRenders(req.params.slug), path.basename(req.query.archivo || '')))
 }))
 
 // Frames del muestreo grueso.
