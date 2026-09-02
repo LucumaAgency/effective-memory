@@ -26,6 +26,7 @@ export function listar () {
         duracion: meta.duracion || 0,
         creado: meta.creado || null,
         fase: estado.fase,
+        error: estado.error || null,
         progreso: estado.progreso || 0,
         comentarios: coms.items.length,
         abiertos: coms.items.filter(c => c.estado !== 'resuelto').length,

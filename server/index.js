@@ -16,6 +16,10 @@ const ok = (fn) => async (req, res) => {
 }
 const metaDe = (slug) => leerJson(path.join(dirProyecto(slug), 'meta.json'))
 
+app.get('/favicon.ico', (_req, res) => {
+  res.type('svg').send('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" rx="4" fill="#4f7cff"/><path d="M6 4.5l5 3.5-5 3.5z" fill="#fff"/></svg>')
+})
+
 app.get('/api/salud', ok(async (_req, res) => {
   res.json({
     dataRepo: cfg.dataRepo,

@@ -17,7 +17,12 @@ async function cargar () {
   $('#rTotal').textContent = mmss(duracion)
 
   if (D.estado.fase === 'error') {
-    $('#aviso').innerHTML = `<div class="aviso"><b>El ingest falló.</b><br>${escapar(D.estado.error || '')}</div>`
+    $('#aviso').innerHTML = `<div class="aviso"><b>El ingest falló.</b><br>${escapar(D.estado.error || '')}
+      <div style="margin-top:9px"><button id="btnReintentar">Reintentar ingest</button></div></div>`
+    $('#btnReintentar').onclick = async () => {
+      await api(`/api/proyectos/${slug}/ingest`, { method: 'POST' })
+      setTimeout(cargar, 400)
+    }
   } else if (!['listo'].includes(D.estado.fase)) {
     $('#aviso').innerHTML = `<div class="aviso">Procesando: ${FASES[D.estado.fase] || D.estado.fase} ${Math.round(D.estado.progreso)}%. Puedes ver el video y comentar mientras tanto.</div>`
     setTimeout(cargar, 2000)
