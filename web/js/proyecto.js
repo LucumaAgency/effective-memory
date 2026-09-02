@@ -58,6 +58,7 @@ function pintarComs () {
       <div class="cab">
         <span class="t" data-t="${c.t}">${mmss(c.t)}</span>
         <span class="meta">${c.tipo}</span>
+        ${c.clip ? `<span class="insignia">${escapar(c.clip)}</span>` : ''}
         <span class="acc">
           <button data-accion="estado" data-id="${c.id}">${c.estado === 'resuelto' ? 'reabrir' : 'resolver'}</button>
           <button data-accion="borrar" data-id="${c.id}">✕</button>
@@ -142,8 +143,12 @@ function pintarEntregas () {
   })
 }
 
+let planClips = {}   // id -> {in, out, ...}
+
 function pintarClips () {
   const conPlan = (D.entregas || []).filter(e => e.plan?.clips?.length)
+  planClips = {}
+  for (const e of conPlan) for (const c of e.plan.clips) planClips[c.id] = c
   const panel = $('#panelClips')
   if (!conPlan.length) { panel.style.display = 'none'; return }
   panel.style.display = ''
@@ -161,6 +166,17 @@ function pintarClips () {
           <button data-clip="${escapar(c.id)}" data-entrega="${escapar(e.version)}">Renderizar</button>
           <span class="meta" data-listo="${escapar(c.id)}"></span>
         </div>
+        <div class="comentar">
+          <select data-tipoclip="${escapar(c.id)}">
+            <option value="nota" selected>nota</option>
+            <option value="corte">corte</option>
+            <option value="subtitulo">subtítulo</option>
+            <option value="grafico">gráfico</option>
+          </select>
+          <input data-textoclip="${escapar(c.id)}" placeholder="Comentar este clip…">
+          <button data-comentarclip="${escapar(c.id)}">Añadir</button>
+        </div>
+        <div class="lista" data-comsclip="${escapar(c.id)}"></div>
       </div>`).join('')}`).join('')
 
   $('#clips').querySelectorAll('.t').forEach(el =>
@@ -172,10 +188,55 @@ function pintarClips () {
 
   $('#clips').querySelectorAll('[data-clip]').forEach(b =>
     b.onclick = () => lanzar(b.dataset.entrega, [b.dataset.clip]))
+
+  const comentarClip = async (id) => {
+    const campo = $(`[data-textoclip="${id}"]`)
+    const texto = campo.value.trim()
+    if (!texto) return
+    // El tiempo se guarda en coordenadas del ORIGINAL: inicio del clip + lo que
+    // marque su reproductor. Asi el comentario tambien cae en la timeline grande.
+    const reproductor = document.querySelector(`#clip_${id} video`)
+    const dentro = reproductor ? reproductor.currentTime : 0
+    await api(`/api/proyectos/${slug}/comentarios`, {
+      method: 'POST',
+      body: JSON.stringify({
+        t: +(planClips[id].in + dentro).toFixed(2),
+        tipo: $(`[data-tipoclip="${id}"]`).value,
+        clip: id,
+        texto
+      })
+    })
+    campo.value = ''
+    cargar()
+  }
+  $('#clips').querySelectorAll('[data-comentarclip]').forEach(b =>
+    b.onclick = () => comentarClip(b.dataset.comentarclip))
+  $('#clips').querySelectorAll('[data-textoclip]').forEach(i =>
+    i.addEventListener('keydown', e => { if (e.key === 'Enter') comentarClip(i.dataset.textoclip) }))
+
+  pintarComentariosDeClips()
   $('#clips').querySelectorAll('[data-todos]').forEach(b =>
     b.onclick = () => lanzar(b.dataset.todos, null))
 
   seguirClips().catch(() => {})
+}
+
+function pintarComentariosDeClips () {
+  const items = D.comentarios?.items || []
+  $('#clips').querySelectorAll('[data-comsclip]').forEach(caja => {
+    const id = caja.dataset.comsclip
+    const suyos = items.filter(c => c.clip === id)
+    caja.innerHTML = suyos.map(c => {
+      const dentro = Math.max(0, c.t - (planClips[id]?.in || 0))
+      return `<div class="${c.tipo} ${c.estado === 'resuelto' ? 'resuelto' : ''}">
+        <span class="quitar" data-borrarcom="${c.id}" title="Borrar">✕</span>
+        <b style="color:var(--acento)">${mmss(dentro)}</b> · ${escapar(c.tipo)} — ${escapar(c.texto)}</div>`
+    }).join('')
+  })
+  $('#clips').querySelectorAll('[data-borrarcom]').forEach(x => x.onclick = async () => {
+    await api(`/api/proyectos/${slug}/comentarios/${x.dataset.borrarcom}`, { method: 'DELETE' })
+    cargar()
+  })
 }
 
 let temporizadorClips = null

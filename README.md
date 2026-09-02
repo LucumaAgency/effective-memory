@@ -76,6 +76,7 @@ versiones: son binarios y se regeneran cuando haga falta.
 - **Fase 1 · circuito completo** — listo: ingest, dashboard, comentarios, push/pull.
 - **Fase 3 · subtítulos** — preview funcionando: quemado de `.ass`/`.srt` desde la UI.
 - **Clips verticales** — funcionando: `clips.json` en una entrega genera cortes 1080x1920
-  para TikTok, con subtítulos quemados y los tiempos rebasados a cada clip.
+  con subtítulos quemados y los tiempos rebasados a cada clip. Cada clip admite sus propios
+  comentarios, que se guardan en coordenadas del original y aparecen también en la timeline.
 - Fase 2 · cortar silencios del video completo — pendiente.
 - Fase 4 · motion graphics HTML/CSS → overlay — pendiente.

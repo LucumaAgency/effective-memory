@@ -111,8 +111,9 @@ export function agregarComentario (slug, c) {
   const id = 'c' + (doc.items.reduce((m, x) => Math.max(m, Number(String(x.id).slice(1)) || 0), 0) + 1)
   const nuevo = {
     id,
-    t: Number(c.t) || 0,
+    t: Number(c.t) || 0,               // siempre en coordenadas del ORIGINAL
     tEnd: c.tEnd == null ? null : Number(c.tEnd),
+    clip: c.clip ? String(c.clip) : null,   // si nacio sobre un clip, cual
     tipo: ['corte', 'subtitulo', 'grafico', 'nota'].includes(c.tipo) ? c.tipo : 'nota',
     texto: String(c.texto || '').trim(),
     estado: 'abierto',
@@ -129,7 +130,7 @@ export function editarComentario (slug, id, parcial) {
   const doc = leerJson(f, { slug, items: [] })
   const i = doc.items.findIndex(x => x.id === id)
   if (i < 0) return null
-  const permitido = ['texto', 'tipo', 'estado', 't', 'tEnd']
+  const permitido = ['texto', 'tipo', 'estado', 't', 'tEnd', 'clip']
   for (const k of permitido) if (k in parcial) doc.items[i][k] = parcial[k]
   doc.items.sort((a, b) => a.t - b.t)
   guardarComentarios(slug, doc)

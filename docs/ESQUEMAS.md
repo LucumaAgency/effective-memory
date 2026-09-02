@@ -64,7 +64,7 @@ Cada segmento lleva `razon` para que corrijas el criterio, no el resultado.
 
 ## entregas/vN/clips.json  (lo escribo yo)
 
-Plan de clips verticales para TikTok. Los tiempos van en coordenadas del **original**;
+Plan de clips verticales. Los tiempos van en coordenadas del **original**;
 la app los rebasa sola al renderizar cada clip.
 
 ```json
