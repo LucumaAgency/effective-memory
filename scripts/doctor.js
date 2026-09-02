@@ -12,7 +12,12 @@ for (const [bin, args] of [[cfg.ffmpeg, ['-version']], [cfg.ffprobe, ['-version'
   try {
     const { out, err } = await correr(bin, args)
     linea(true, bin, (out || err).split('\n')[0].slice(0, 60))
-  } catch { linea(false, bin, 'no esta en el PATH') }
+  } catch {
+    const esRuta = /[\\/]/.test(bin)
+    linea(false, bin, esRuta
+      ? (fs.existsSync(bin) ? 'el archivo existe pero no se pudo ejecutar' : 'esa ruta no existe, corrige el .env')
+      : 'no esta en el PATH, o pon la ruta completa en el .env')
+  }
 }
 
 try {
