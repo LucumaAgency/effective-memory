@@ -79,7 +79,7 @@ centrada al 65% de la altura. De la hoja de contactos se lee la secuencia comple
 
 ## Cómo hacer que aprenda más rápido
 
-Ordenado por cuánto acelera de verdad. **Ninguno está construido todavía.**
+Ordenado por cuánto acelera de verdad. **1 y 2 están construidos; 3 y 4 no.**
 
 ### La asimetría que hay que corregir
 
@@ -87,19 +87,22 @@ Hoy la referencia se analiza con lupa y **el propio resultado nunca se mira**. S
 correcciones en texto. Eso es lo que hace lento el aprendizaje: se trabaja a ciegas sobre el
 propio trabajo.
 
-### 1. Ver la propia salida, en el mismo formato
+### 1. Ver la propia salida, en el mismo formato — HECHO
 
-Al renderizar un clip, generar **la misma hoja de contactos** que se le hace a la referencia.
+Botón **Analizar salida** en cada clip. Genera **la misma hoja de contactos** que se le hace a
+la referencia (rejilla 6×5 a 2 fotogramas por segundo) sobre el clip ya renderizado, y mide lo
+mismo: plano medio, palabras por minuto, sonoridad, color y subtítulo.
+
 Así se comparan dos rejillas equivalentes en vez de imaginar cómo quedó.
 
-Lo más barato de construir y lo que más cambia.
+### 2. Convertir lo observado en números — HECHO
 
-### 2. Convertir lo observado en números
+`medirSubtitulos()` lee los fotogramas como RGB crudo (sin librerías de imagen) y localiza la
+franja de texto por **contraste local**: un trazo de letra produce muchísimos saltos de
+luminancia por fila, un fondo plano no. De ahí salen altura desde abajo, centro horizontal,
+ancho, número de líneas, alto de línea y los colores claro y oscuro dominantes.
 
-Detectar automáticamente la caja de texto sobre los frames y medir: altura en porcentaje,
-centro horizontal, alto de fuente relativo al alto del video, color de relleno, contorno o caja.
-
-La comparación deja de ser opinión:
+Al elegir una referencia en el selector de la sección Clips, la comparación deja de ser opinión:
 
 ```
                  referencia   salida
@@ -109,7 +112,31 @@ plano medio         2.1s       61s     ← distinto a propósito
 palabras por cue     3.2       6.1     ← corregir
 ```
 
-Cerrar cuatro números es mucho más rápido que interpretar un párrafo.
+Cerrar cuatro números es mucho más rápido que interpretar un párrafo. Cada fila lleva su
+tolerancia; sin eso todo parece distinto.
+
+**Lo que la medición hace bien y lo que no.** Validado contra videos de los que se conocía la
+respuesta exacta:
+
+| Medida | Precisión comprobada |
+|---|---|
+| altura desde abajo | 36,9% medido contra 36,5% real · 8,1% contra 7,5% |
+| centro horizontal | exacto |
+| ancho del texto | 42,9% contra ~43% real |
+| color del texto | `#FCFD04` medido contra `#FFFF00` real |
+| alto de línea | **subestima entre un 15% y un 45%** |
+| número de líneas | ruidoso cuando hay caja: los bordes de la caja cuentan como filas densas |
+
+El alto de línea se queda corto porque el umbral de contraste solo captura el interior denso
+del trazo. **Da igual para lo que importa**: la referencia y la salida se miden con la misma
+vara torcida, así que el sesgo se cancela en la diferencia. Lo que no se puede hacer es leer
+el valor absoluto como si fuera el tamaño de fuente real.
+
+**Lo que se intentó y no funcionó:** decidir automáticamente si el subtítulo lleva caja o
+contorno. Se probaron tres criterios de píxel (proporción de claros en la franja, brillo del
+entorno sin bordes, moda de color) y ninguno separa los dos casos con fiabilidad. Se quitó el
+booleano en vez de dejar uno que miente: caja o contorno se lee del recorte a resolución
+completa, que es exactamente para lo que existe.
 
 ### 3. Que las correcciones se acumulen
 

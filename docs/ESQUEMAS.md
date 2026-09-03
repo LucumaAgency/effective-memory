@@ -237,3 +237,19 @@ al `clips.json` o al estilo de subtítulos cuando convencen.
 
 > Se replica el estilo, no los recursos. Los logos, plantillas o música de la referencia no se
 > reutilizan.
+
+## renders/<proyecto>/analisis/<entrega>__<clip>.json
+
+Lo mismo que se mide en una referencia, aplicado a lo que producimos. Se genera con el botón
+**Analizar salida** de cada clip, y su hoja de contactos usa el mismo formato (rejilla 6×5 a 2
+fotogramas por segundo) para que las dos sean comparables mirándolas.
+
+`GET /api/comparar?referencia=<slug>&slug=<proyecto>&entrega=v3&id=c01` devuelve la tabla:
+cada fila lleva el valor de la referencia, el de la salida, la diferencia y si está dentro de
+tolerancia.
+
+El bloque `subtitulos` viene de `medirSubtitulos()`, que localiza la franja de texto por
+contraste local sobre los fotogramas en crudo. Es una **estimación**: la altura, el centro, el
+ancho y los colores son fiables; el alto de línea subestima de forma sistemática. Como
+referencia y salida se miden igual, el sesgo se cancela en la comparación, pero el valor
+absoluto no es el tamaño de fuente.

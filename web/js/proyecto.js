@@ -87,7 +87,8 @@ function pintarComs () {
         body: JSON.stringify({ estado: c.estado === 'resuelto' ? 'abierto' : 'resuelto' })
       })
     }
-    cargar()
+    cargarReferencias()
+cargar()
   })
 }
 
@@ -254,6 +255,7 @@ function pintarClips () {
       ${c.razon ? `<button class="verMas">por qué este corte</button><div class="razon">${escapar(c.razon)}</div>` : ''}
       <div class="pie">
         <button data-clip="${escapar(c.id)}">Renderizar</button>
+        <button data-analizar="${escapar(c.id)}">Analizar salida</button>
       </div>
       <div class="soporte"></div>
       <div class="comentar">
@@ -268,6 +270,7 @@ function pintarClips () {
       </div>
       <div class="lista" data-comsclip="${escapar(c.id)}"></div>
       <div class="graficos" data-grafs="${escapar(c.id)}"></div>
+      <div class="analisis" data-analisis="${escapar(c.id)}" style="display:none"></div>
     </div>`).join('')
 
   $('#clips').querySelectorAll('.verMas').forEach(b =>
@@ -278,6 +281,9 @@ function pintarClips () {
 
   $('#clips').querySelectorAll('[data-clip]').forEach(b =>
     b.onclick = () => lanzarClips([b.dataset.clip]))
+
+  $('#clips').querySelectorAll('[data-analizar]').forEach(b =>
+    b.onclick = () => analizarSalida(b.dataset.analizar, b))
 
   const comentarClip = async (id) => {
     const campo = document.querySelector(`#clips [data-textoclip="${id}"]`)
@@ -430,6 +436,90 @@ function aplicarEstadoClips (r) {
   })
 }
 
+/** Mira la propia salida con la misma vara que la referencia. */
+async function analizarSalida (id, boton) {
+  const caja = document.querySelector(`[data-analisis="${id}"]`)
+  if (caja.style.display !== 'none' && caja.innerHTML) {
+    caja.style.display = 'none'; caja.innerHTML = ''; return
+  }
+  caja.style.display = ''
+  caja.innerHTML = '<div class="meta">Analizando…</div>'
+  boton.disabled = true
+  try {
+    let r = await api(`/api/proyectos/${slug}/clips/analisis?entrega=${encodeURIComponent(entregaVisible)}&id=${encodeURIComponent(id)}`)
+    if (!r.medidas) {
+      await api(`/api/proyectos/${slug}/clips/analisis`, {
+        method: 'POST', body: JSON.stringify({ entrega: entregaVisible, id })
+      })
+      r = await api(`/api/proyectos/${slug}/clips/analisis?entrega=${encodeURIComponent(entregaVisible)}&id=${encodeURIComponent(id)}`)
+    }
+    await pintarAnalisis(caja, id, r.medidas)
+  } catch (e) {
+    caja.innerHTML = `<div class="meta" style="color:var(--corte)">${escapar(e.message)}</div>`
+  } finally { boton.disabled = false }
+}
+
+async function pintarAnalisis (caja, id, med) {
+  if (!med) { caja.innerHTML = '<div class="meta">Sin medidas.</div>'; return }
+  const clave = `${entregaVisible}__${id}`
+  const hojas = (med.imagenes?.hojas || []).map(f =>
+    `<img src="/api/proyectos/${encodeURIComponent(slug)}/clips/analisis/${encodeURIComponent(clave)}/hoja/${encodeURIComponent(f)}">`).join('')
+
+  let tabla = ''
+  const ref = $('#refEstilo').value
+  if (ref) {
+    try {
+      const c = await api(`/api/comparar?referencia=${encodeURIComponent(ref)}&slug=${encodeURIComponent(slug)}&entrega=${encodeURIComponent(entregaVisible)}&id=${encodeURIComponent(id)}`)
+      tabla = `<table class="tablaComp">
+        <tr><th>medida</th><th>referencia</th><th>salida</th><th>dif</th></tr>
+        ${c.filas.map(f => `<tr class="${f.estado === 'corregir' ? 'corregir' : f.estado === 'ok' ? 'ok' : 'sindato'}">
+          <td>${escapar(f.etiqueta)}</td><td>${f.referencia ?? '—'}</td><td>${f.salida ?? '—'}</td>
+          <td>${f.diferencia == null ? '—' : (f.diferencia > 0 ? '+' : '') + f.diferencia}</td></tr>`).join('')}
+        ${c.colores.map(x => `<tr><td>${escapar(x.etiqueta)}</td>
+          <td colspan="1">${muestra(x.referencia)}</td><td colspan="2">${muestra(x.salida)}</td></tr>`).join('')}
+      </table>
+      <div class="meta" style="margin-top:6px">${c.porCorregir} medidas fuera de tolerancia · ${escapar(c.aOjo)}</div>`
+    } catch (e) {
+      tabla = `<div class="meta" style="color:var(--subtitulo)">${escapar(e.message)}</div>`
+    }
+  } else {
+    tabla = '<div class="meta">Elige una referencia arriba para comparar con números.</div>'
+  }
+
+  const s = med.subtitulos
+  caja.innerHTML = `
+    <div class="meta">plano medio ${med.ritmo?.planoMedio}s · ${med.habla?.palabrasPorMinuto} ppm ·
+      ${med.audio?.lufs ?? '—'} LUFS${s?.detectado ? ` · subtítulo al ${s.desdeAbajo}% desde abajo` : ' · sin subtítulo detectado'}</div>
+    ${tabla}
+    <div class="meta" style="margin-top:10px">Hoja de contactos de este clip, mismo formato que la de la referencia:</div>
+    ${hojas}`
+}
+
+const muestra = (hex) => hex
+  ? `<span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:${escapar(hex)};vertical-align:-1px;margin-right:5px;border:1px solid var(--linea)"></span>${escapar(hex)}`
+  : '—'
+
+async function cargarReferencias () {
+  try {
+    const rs = await api('/api/referencias')
+    const sel = $('#refEstilo')
+    const previa = sel.value
+    sel.innerHTML = '<option value="">— ninguna —</option>' +
+      rs.filter(r => r.fase === 'listo').map(r =>
+        `<option value="${escapar(r.slug)}">${escapar(r.titulo)}</option>`).join('')
+    if ([...sel.options].some(o => o.value === previa)) sel.value = previa
+  } catch { /* sin referencias */ }
+}
+$('#refEstilo').onchange = () => {
+  // Repintar los analisis abiertos con la nueva referencia.
+  document.querySelectorAll('[data-analisis]').forEach(async caja => {
+    if (caja.style.display === 'none' || !caja.innerHTML) return
+    const id = caja.dataset.analisis
+    const r = await api(`/api/proyectos/${slug}/clips/analisis?entrega=${encodeURIComponent(entregaVisible)}&id=${encodeURIComponent(id)}`)
+    pintarAnalisis(caja, id, r.medidas)
+  })
+}
+
 let temporizadorClips = null
 async function seguirClips () {
   clearTimeout(temporizadorClips)
@@ -533,4 +623,5 @@ document.addEventListener('keydown', e => {
   if (e.key.toLowerCase() === 'c') { e.preventDefault(); video.pause(); $('#texto').focus() }
 })
 
+cargarReferencias()
 cargar()

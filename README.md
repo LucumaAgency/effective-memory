@@ -92,6 +92,10 @@ recortes **sin escalar** de la zona del subtítulo, que es donde se ve la tipogr
 Claude escribe después un `estilo.json` con lo observado y unos valores propuestos, que se
 copian a mano donde convenzan.
 
+Y al revés: el botón **Analizar salida** de cada clip lo mide con la misma vara y, si eliges
+una referencia en el selector de la sección Clips, muestra la tabla de diferencias con las
+medidas fuera de tolerancia marcadas. Así se cierra el bucle sin tener que explicar nada.
+
 ## Estado
 
 - **Fase 1 · circuito completo** — listo: ingest, dashboard, comentarios, push/pull.

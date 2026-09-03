@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { cfg } from './config.js'
 import { correr, leerJson, escribirJson, slugify } from './util.js'
+import * as AN from './analisis.js'
 
 // Las referencias son de estilo, no de contenido: viven aparte de los proyectos.
 export const dirReferencias = () => path.join(cfg.dataRepo, 'referencias')
@@ -66,45 +67,10 @@ async function sondear (v) {
 }
 
 /** Cambios de plano. La duracion media de plano es la medida que mas define el ritmo. */
-async function escenas (v, umbral = 0.28) {
-  let log = ''
-  try {
-    await correr(cfg.ffmpeg, ['-hide_banner', '-nostats', '-i', v,
-      '-vf', `select='gt(scene,${umbral})',showinfo`, '-an', '-f', 'null', '-'],
-    { onStderr: t => { log += t } })
-  } catch (e) { log += e.err || '' }
-  const cortes = [...log.matchAll(/pts_time:([\d.]+)/g)].map(m => +Number(m[1]).toFixed(3))
-  return [...new Set(cortes)].sort((a, b) => a - b)
-}
 
 /** Sonoridad integrada: delata si lleva musica de fondo y a que nivel esta mezclada. */
-async function sonoridad (v) {
-  let log = ''
-  try {
-    await correr(cfg.ffmpeg, ['-hide_banner', '-nostats', '-i', v,
-      '-af', 'ebur128=peak=true', '-f', 'null', '-'], { onStderr: t => { log += t } })
-  } catch (e) { log += e.err || '' }
-  const num = (etiqueta) => {
-    const m = new RegExp(`${etiqueta}:\\s*(-?[\\d.]+)`).exec(log.split('Summary').pop() || '')
-    return m ? Number(m[1]) : null
-  }
-  return { lufs: num('I'), rango: num('LRA'), picoReal: num('Peak') }
-}
 
 /** Estadisticas de color: saturacion y brillo medios sobre una muestra. */
-async function color (v) {
-  let log = ''
-  try {
-    await correr(cfg.ffmpeg, ['-hide_banner', '-nostats', '-i', v,
-      '-vf', 'fps=1,scale=160:-2,signalstats,metadata=print', '-an', '-f', 'null', '-'],
-    { onStderr: t => { log += t } })
-  } catch (e) { log += e.err || '' }
-  const medias = (clave) => {
-    const xs = [...log.matchAll(new RegExp(`lavfi\\.signalstats\\.${clave}=([\\d.]+)`, 'g'))].map(m => Number(m[1]))
-    return xs.length ? +(xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(1) : null
-  }
-  return { saturacionMedia: medias('SATAVG'), brilloMedio: medias('YAVG') }
-}
 
 /** Hojas de contacto + frames sueltos + recortes de la zona del subtitulo. */
 async function imagenes (v, slug, info, cortes) {
@@ -112,14 +78,11 @@ async function imagenes (v, slug, info, cortes) {
   const dHojas = path.join(dir, 'hojas')
   const dFrames = path.join(dir, 'frames')
   const dSubs = path.join(dir, 'subtitulos')
-  for (const d of [dHojas, dFrames, dSubs]) {
+  for (const d of [dFrames, dSubs]) {
     fs.rmSync(d, { recursive: true, force: true }); fs.mkdirSync(d, { recursive: true })
   }
 
-  const FPS_HOJA = 2, COLS = 6, FILAS = 5
-  await correr(cfg.ffmpeg, ['-hide_banner', '-loglevel', 'error', '-i', v,
-    '-vf', `fps=${FPS_HOJA},scale=280:-2,tile=${COLS}x${FILAS}:padding=6:margin=6:color=0x1a1a1a`,
-    '-q:v', '4', path.join(dHojas, 'hoja%02d.jpg')])
+  const listaHojas = await AN.hojas(v, dHojas)
 
   // Un frame entero en cada cambio de plano, a resolucion original.
   const instantes = (cortes.length ? cortes : [])
@@ -138,8 +101,8 @@ async function imagenes (v, slug, info, cortes) {
   }
 
   return {
-    hojas: fs.readdirSync(dHojas).sort(),
-    fpsHoja: FPS_HOJA, columnas: COLS, filas: FILAS,
+    hojas: listaHojas,
+    fpsHoja: AN.HOJA.fps, columnas: AN.HOJA.cols, filas: AN.HOJA.filas,
     frames: fs.readdirSync(dFrames).sort(),
     recortes: fs.readdirSync(dSubs).sort()
   }
@@ -165,16 +128,19 @@ export async function ingestar (slug) {
     escribirJson(path.join(dir, 'meta.json'), { ...meta, ...info })
 
     marcar(slug, { fase: 'escenas', progreso: 18 })
-    const cortes = await escenas(v)
+    const cortes = await AN.escenas(v)
 
     marcar(slug, { fase: 'audio', progreso: 34 })
-    const audio = info.tieneAudio ? await sonoridad(v) : null
+    const audio = info.tieneAudio ? await AN.sonoridad(v) : null
 
     marcar(slug, { fase: 'color', progreso: 46 })
-    const col = await color(v)
+    const col = await AN.color(v)
 
     marcar(slug, { fase: 'imagenes', progreso: 58 })
     const imgs = await imagenes(v, slug, info, cortes)
+
+    marcar(slug, { fase: 'subtitulos', progreso: 70 })
+    const subs = await AN.medirSubtitulos(v, info).catch(() => null)
 
     let transcript = { segmentos: [] }
     if (info.tieneAudio) {
@@ -187,13 +153,13 @@ export async function ingestar (slug) {
     const planos = cortes.length
       ? +(info.duracion / (cortes.length + 1)).toFixed(2)
       : +info.duracion.toFixed(2)
-    const palabras = (transcript.segmentos || []).reduce((s, x) => s + (x.palabras?.length || 0), 0)
 
     escribirJson(path.join(dir, 'medidas.json'), {
       formato: { ancho: info.ancho, alto: info.alto, fps: info.fps, relacion: info.relacion,
         vertical: info.relacion > 0 && info.relacion < 1 },
       ritmo: { cortes: cortes.length, planoMedio: planos, instantes: cortes },
-      habla: { palabras, palabrasPorMinuto: info.duracion ? Math.round(palabras / info.duracion * 60) : 0 },
+      habla: AN.ritmoDeHabla(transcript, info.duracion),
+      subtitulos: subs,
       audio, color: col, imagenes: imgs
     })
 

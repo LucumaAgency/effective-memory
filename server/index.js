@@ -11,6 +11,7 @@ import * as X from './cortes.js'
 import * as GR from './graficos.js'
 import { buscarNavegador } from './navegador.js'
 import * as REF from './referencias.js'
+import * as SAL from './salida.js'
 import { leerJson } from './util.js'
 
 const app = express()
@@ -109,6 +110,36 @@ app.post('/api/proyectos/:slug/render', ok(async (req, res) => {
 app.get('/api/proyectos/:slug/render/estado', ok(async (req, res) => {
   res.json({ ...R.estadoRender(req.params.slug), renders: R.listarRenders(req.params.slug) })
 }))
+// --- analisis de la propia salida y comparacion ---
+app.post('/api/proyectos/:slug/clips/analisis', ok(async (req, res) => {
+  const { entrega, id } = req.body || {}
+  res.json(await SAL.analizarClip(req.params.slug, entrega, id))
+}))
+
+app.get('/api/proyectos/:slug/clips/analisis', ok(async (req, res) => {
+  const clave = `${req.query.entrega}__${req.query.id}`
+  res.json({
+    medidas: SAL.leerAnalisis(req.params.slug, clave),
+    enCurso: SAL.analizando(clave)
+  })
+}))
+
+app.get('/api/proyectos/:slug/clips/analisis/:clave/hoja/:archivo', ok(async (req, res) => {
+  const f = path.join(SAL.dirAnalisis(req.params.slug), path.basename(req.params.clave),
+    'hojas', path.basename(req.params.archivo))
+  if (!fs.existsSync(f)) return res.status(404).end()
+  res.sendFile(f)
+}))
+
+app.get('/api/comparar', ok(async (req, res) => {
+  const { referencia, slug, entrega, id } = req.query
+  const medRef = SAL.medidasReferencia(referencia)
+  if (!medRef) return res.status(404).json({ error: 'esa referencia no está analizada' })
+  const med = SAL.leerAnalisis(slug, `${entrega}__${id}`)
+  if (!med) return res.status(404).json({ error: 'ese clip no está analizado todavía' })
+  res.json({ ...SAL.comparar(medRef, med), referencia, clip: `${entrega}__${id}` })
+}))
+
 // --- referencias de estilo ---
 app.get('/api/referencias', ok(async (_req, res) => res.json(REF.listar())))
 

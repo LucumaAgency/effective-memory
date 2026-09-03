@@ -119,3 +119,15 @@ video{width:100%;background:#000;border-radius:11px;display:block}
 .graf .cab button{padding:2px 8px;font-size:11.5px}
 .graf img{width:100%;border-radius:8px;margin-top:7px;display:block}
 .graf input[type=range]{width:100%;margin-top:6px;accent-color:var(--grafico)}
+
+/* analisis de la salida */
+.analisis{margin-top:9px;border-top:1px dashed var(--linea);padding-top:8px}
+.analisis img{width:100%;border-radius:8px;margin-top:8px;display:block}
+.tablaComp{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.tablaComp th{text-align:right;color:var(--suave);font-weight:500;padding:3px 6px;font-size:11px}
+.tablaComp th:first-child{text-align:left}
+.tablaComp td{padding:3px 6px;border-top:1px solid var(--linea);font-variant-numeric:tabular-nums;text-align:right}
+.tablaComp td:first-child{text-align:left;color:var(--suave)}
+.tablaComp tr.corregir td{color:var(--corte)}
+.tablaComp tr.ok td{color:var(--ok)}
+.tablaComp tr.sindato td{opacity:.45}
