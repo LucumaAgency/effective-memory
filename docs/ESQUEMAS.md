@@ -253,3 +253,39 @@ contraste local sobre los fotogramas en crudo. Es una **estimación**: la altura
 ancho y los colores son fiables; el alto de línea subestima de forma sistemática. Como
 referencia y salida se miden igual, el sesgo se cancela en la comparación, pero el valor
 absoluto no es el tamaño de fuente.
+
+## Timeline editable
+
+`web/js/timeline.js` no es un editor de video: es una **vista con manijas sobre los JSON que
+ya existen**. Arrastrar el borde de un clip escribe en `clips.json`; arrastrar un gráfico
+escribe en `graficos.json`. Si la interfaz tuviera su propio estado, el ida y vuelta con Claude
+dejaría de funcionar.
+
+- **Imantado a palabras.** Al arrastrar, el borde se pega al inicio o al final de la palabra
+  más cercana usando los timestamps de la transcripción, dentro de una ventana del 2% del zoom
+  actual. Cortar a media sílaba es el error típico al editar diálogo. Se puede desactivar.
+- **Zoom** con la rueda (o los botones), forma de onda de fondo generada con `showwavespic` y
+  cacheada, y las bandas de silencio y voz debajo.
+- Todo lo que se edita a mano queda marcado con `editadoAMano`.
+
+### Conflictos con las entregas
+
+Si el usuario edita un clip y Claude entrega una versión nueva, ambos tocan el mismo archivo.
+La regla acordada: **las ediciones a mano mandan.** Claude no pisa lo que lleve `editadoAMano`;
+propone los cambios en una entrega nueva y el usuario decide.
+
+## Previa en vivo (`web/js/vivo.js`)
+
+El gráfico es HTML, así que para verlo **no hace falta renderizar**: se pone el mismo archivo en
+un `iframe` sobre el `<video>` y se le fija el reloj de las animaciones a
+`video.currentTime − grafico.in`. Es exactamente el mismo HTML que después se quema, así que no
+hay diferencia entre la previa y el resultado.
+
+La capa se dibuja al tamaño real del gráfico (1080×1920) y se escala con `transform`, de modo
+que las medidas en píxeles del HTML significan lo mismo que en el render.
+
+Los subtítulos se pintan igual, como HTML sobre el video, a partir de
+`GET /api/proyectos/:slug/cues`. Cambiar el estilo se ve al instante en vez de costar un render.
+
+Si el clip ya está renderizado, la previa va sobre él y es idéntica al resultado. Si no, va
+sobre el original y se avisa de que falta el encuadre vertical.

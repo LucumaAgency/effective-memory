@@ -12,6 +12,7 @@ import * as GR from './graficos.js'
 import { buscarNavegador } from './navegador.js'
 import * as REF from './referencias.js'
 import * as SAL from './salida.js'
+import * as ED from './edicion.js'
 import { leerJson } from './util.js'
 
 const app = express()
@@ -110,6 +111,36 @@ app.post('/api/proyectos/:slug/render', ok(async (req, res) => {
 app.get('/api/proyectos/:slug/render/estado', ok(async (req, res) => {
   res.json({ ...R.estadoRender(req.params.slug), renders: R.listarRenders(req.params.slug) })
 }))
+// --- edicion desde la timeline ---
+app.patch('/api/proyectos/:slug/entregas/:entrega/clips/:id', ok(async (req, res) => {
+  res.json(ED.editarClip(req.params.slug, req.params.entrega, req.params.id, req.body || {}))
+}))
+app.patch('/api/proyectos/:slug/entregas/:entrega/graficos/:id', ok(async (req, res) => {
+  res.json(ED.editarGrafico(req.params.slug, req.params.entrega, req.params.id, req.body || {}))
+}))
+app.get('/api/proyectos/:slug/entregas/:entrega/graficos/:id/html', ok(async (req, res) => {
+  const { html } = ED.htmlGrafico(req.params.slug, req.params.entrega, req.params.id)
+  res.type('html').set('Cache-Control', 'no-store').send(html)
+}))
+app.get('/api/proyectos/:slug/onda.png', ok(async (req, res) => {
+  res.sendFile(await ED.formaDeOnda(req.params.slug))
+}))
+
+// Cues de subtitulo tal como se generarian, para pintarlos en vivo sobre el player.
+app.get('/api/proyectos/:slug/cues', ok(async (req, res) => {
+  const { armarCues } = await import('./subtitulos.js')
+  const t = leerJson(path.join(dirProyecto(req.params.slug), 'transcript.json'), { segmentos: [] })
+  const correcciones = C.correccionesDe(req.params.slug, {})
+  const cues = armarCues(t, Number(req.query.desde) || 0,
+    Number(req.query.hasta) || 1e9, { maxLinea: Number(req.query.maxLinea) || 42 })
+  res.json({
+    cues: cues.map(c => ({
+      ...c,
+      texto: correcciones.reduce((acc, [p, r]) => acc.replace(new RegExp(p, 'g'), r), c.texto)
+    }))
+  })
+}))
+
 // --- analisis de la propia salida y comparacion ---
 app.post('/api/proyectos/:slug/clips/analisis', ok(async (req, res) => {
   const { entrega, id } = req.body || {}

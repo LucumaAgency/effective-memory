@@ -1,4 +1,6 @@
 import { api, mmss, FASES, escapar } from './comun.js'
+import { crearTimeline } from './timeline.js'
+import { montarEscenario, montarGraficos, montarSubtitulos } from './vivo.js'
 
 const $ = (s) => document.querySelector(s)
 const slug = new URLSearchParams(location.search).get('p')
@@ -36,27 +38,82 @@ async function cargar () {
     setTimeout(cargar, 2000)
   } else $('#aviso').innerHTML = ''
 
+  // La entrega visible se decide antes de pintar: la timeline la necesita y se
+  // dibuja primero.
+  const conPlan = entregasConClips()
+  if (!conPlan.some(e => e.version === entregaVisible)) {
+    entregaVisible = conPlan.length ? conPlan[conPlan.length - 1].version : null
+  }
+
   pintarPista(); pintarComs(); pintarSilencios(); pintarTranscripcion(); pintarEntregas(); pintarClips(); pintarCortes()
   seguirRender().catch(() => {})
 }
 
-function pintarPista () {
-  const p = $('#pista')
-  const silencios = (D.silencios?.tramos || [])
-    .map(s => `<div class="silencio" title="silencio ${s.dur}s en ${mmss(s.in)}"
-      style="left:${pct(s.in)}%;width:${Math.max(pct(s.dur), 0.15)}%"></div>`).join('')
-  const habla = (D.transcript?.segmentos || [])
-    .map(s => `<div class="habla" style="left:${pct(s.in)}%;width:${Math.max(pct(s.out - s.in), 0.1)}%"></div>`).join('')
-  const marcas = (D.comentarios?.items || [])
-    .map(c => `<div class="marca tipo-${c.tipo}" data-t="${c.t}" data-id="${c.id}"
-      title="${escapar(c.texto)}" style="left:${pct(c.t)}%;${c.estado === 'resuelto' ? 'opacity:.35' : ''}"></div>`).join('')
-  p.innerHTML = silencios + habla + marcas + '<div class="cabeza" id="cabeza" style="left:0"></div>'
+let tl = null
 
-  p.onclick = (e) => {
-    if (e.target.classList.contains('marca')) { video.currentTime = Number(e.target.dataset.t); return }
-    const r = p.getBoundingClientRect()
-    video.currentTime = ((e.clientX - r.left) / r.width) * duracion
+function pintarPista () {
+  const dur = duracion || D.meta?.duracion || 0
+  if (!tl) {
+    tl = crearTimeline(document.getElementById('tl'), {
+      duracion: dur,
+      onda: `/api/proyectos/${encodeURIComponent(slug)}/onda.png`,
+      alBuscar: (t) => { $('#fuente').value = ''; cambiarFuente(); video.currentTime = t }
+    })
   }
+
+  const entrega = (D.entregas || []).find(e => e.version === entregaVisible)
+  const pistas = []
+
+  if (entrega?.plan?.clips?.length) {
+    pistas.push({
+      etiqueta: `clips ${entrega.version}`,
+      items: entrega.plan.clips.map(c => ({ id: c.id, in: c.in, out: c.out, titulo: c.titulo || c.id, color: 'var(--acento)' })),
+      alEditar: async (item) => {
+        try {
+          await api(`/api/proyectos/${slug}/entregas/${encodeURIComponent(entrega.version)}/clips/${encodeURIComponent(item.id)}`,
+            { method: 'PATCH', body: JSON.stringify({ in: item.in, out: item.out }) })
+          cargar()
+        } catch (e) { alert(e.message); cargar() }
+      }
+    })
+  }
+
+  if (entrega?.graficos?.graficos?.length) {
+    pistas.push({
+      etiqueta: 'gráficos',
+      items: entrega.graficos.graficos.map(g => ({ id: g.id, in: g.in, out: g.out, titulo: g.id, color: 'var(--grafico)' })),
+      alEditar: async (item) => {
+        try {
+          await api(`/api/proyectos/${slug}/entregas/${encodeURIComponent(entrega.version)}/graficos/${encodeURIComponent(item.id)}`,
+            { method: 'PATCH', body: JSON.stringify({ in: item.in, out: item.out }) })
+          cargar()
+        } catch (e) { alert(e.message); cargar() }
+      }
+    })
+  }
+
+  const coms = (D.comentarios?.items || [])
+  if (coms.length) {
+    pistas.push({
+      etiqueta: 'comentarios',
+      items: coms.map(c => ({ id: c.id, in: c.t, out: c.tEnd || c.t + 0.6, titulo: c.texto.slice(0, 40), color: `var(--${c.tipo})` })),
+      alEditar: async (item) => {
+        await api(`/api/proyectos/${slug}/comentarios/${item.id}`,
+          { method: 'PATCH', body: JSON.stringify({ t: item.in }) })
+        cargar()
+      }
+    })
+  }
+
+  tl.configurar({
+    duracion: dur,
+    palabras: (D.transcript?.segmentos || []).flatMap(s => s.palabras || []),
+    fondos: {
+      silencios: D.silencios?.tramos || [],
+      voz: (D.transcript?.segmentos || []).map(s => ({ in: s.in, out: s.out }))
+    },
+    pistas
+  })
 }
 
 function pintarComs () {
@@ -230,9 +287,7 @@ function pintarClips () {
   panel.style.display = ''
 
   // Una entrega a la vez: con varias versiones la lista se volvia interminable.
-  if (!conPlan.some(e => e.version === entregaVisible)) {
-    entregaVisible = conPlan[conPlan.length - 1].version
-  }
+  if (!conPlan.some(e => e.version === entregaVisible)) entregaVisible = conPlan[conPlan.length - 1].version
   $('#entregaClips').innerHTML = conPlan.map(e =>
     `<option value="${escapar(e.version)}"${e.version === entregaVisible ? ' selected' : ''}>${escapar(e.version)} · ${e.plan.clips.length} clips</option>`).join('')
 
@@ -328,7 +383,7 @@ async function lanzarClips (ids) {
   }
 }
 
-$('#entregaClips').onchange = (e) => { entregaVisible = e.target.value; pintarClips() }
+$('#entregaClips').onchange = (e) => { entregaVisible = e.target.value; pintarClips(); pintarPista() }
 $('#btnTodos').onclick = () => lanzarClips(null)
 
 function pintarGraficos (entrega) {
@@ -347,26 +402,73 @@ function pintarGraficos (entrega) {
         <div class="hueco"></div>
       </div>`).join('')
 
-    caja.querySelectorAll('[data-prev]').forEach(b => b.onclick = () => {
-      const g = suyos.find(x => x.id === b.dataset.prev)
+    caja.querySelectorAll('[data-prev]').forEach(b => b.onclick = async () => {
       const hueco = b.closest('.graf').querySelector('.hueco')
       if (hueco.innerHTML) { hueco.innerHTML = ''; return }
-      const dur = (g.out - g.in).toFixed(2)
-      hueco.innerHTML = `<img alt="vista previa">
-        <input type="range" min="0" max="${dur}" step="0.05" value="${Math.min(0.8, dur / 2).toFixed(2)}">
-        <div class="meta" style="text-align:center">instante <span>0.80</span>s de ${dur}s</div>`
-      const img = hueco.querySelector('img')
-      const barra = hueco.querySelector('input')
-      const etiqueta = hueco.querySelector('span')
-      const refrescar = () => {
-        etiqueta.textContent = Number(barra.value).toFixed(2)
-        img.src = `/api/proyectos/${encodeURIComponent(slug)}/graficos/preview` +
-          `?entrega=${encodeURIComponent(entrega.version)}&id=${encodeURIComponent(g.id)}&t=${barra.value}`
-      }
-      barra.oninput = refrescar
-      refrescar()
+      const clip = planClips[caja.dataset.grafs]
+      await montarVivo(hueco, entrega, clip, suyos)
     })
   })
+}
+
+/**
+ * Previa en vivo de un clip: el video de fondo (el clip renderizado si existe,
+ * el original si no) con los graficos y los subtitulos encima como HTML.
+ * Iterar aqui no cuesta un render.
+ */
+async function montarVivo (hueco, entrega, clip, graficos) {
+  const fmt = entrega.plan.formato || { ancho: 1080, alto: 1920 }
+  const hechos = new Set((ultimoEstado.hechos || []).map(h => h.clave))
+  const clave = `${entrega.version}__${clip.id}`
+  const renderizado = hechos.has(clave)
+
+  hueco.innerHTML = '<div class="meta">Montando…</div>'
+  const src = renderizado
+    ? `/api/proyectos/${encodeURIComponent(slug)}/clips/video?archivo=${encodeURIComponent(clave + '.mp4')}`
+    : `/api/proyectos/${encodeURIComponent(slug)}/video`
+
+  hueco.innerHTML = ''
+  const esc = montarEscenario(hueco, {
+    src,
+    ancho: renderizado ? fmt.ancho : (D.meta?.ancho || 1280),
+    alto: renderizado ? fmt.alto : (D.meta?.alto || 720)
+  })
+
+  // Sobre el clip renderizado el tiempo empieza en 0; sobre el original, en clip.in.
+  const aOriginal = (t) => renderizado ? clip.in + t : t
+  if (!renderizado) esc.video.currentTime = clip.in
+
+  const pintarGraf = montarGraficos(esc, graficos, g =>
+    `/api/proyectos/${encodeURIComponent(slug)}/entregas/${encodeURIComponent(entrega.version)}/graficos/${encodeURIComponent(g.id)}/html`)
+
+  let pintarSubs = () => {}
+  if (renderizado) {
+    esc.capaSub.style.display = 'none'   // el clip ya los lleva quemados
+  } else {
+    try {
+      const est = entrega.plan.estilo || {}
+      const r = await api(`/api/proyectos/${slug}/cues?desde=${clip.in}&hasta=${clip.out}&maxLinea=${est.maxLinea || 26}`)
+      pintarSubs = montarSubtitulos(esc, r.cues)
+    } catch { /* sin transcripcion */ }
+  }
+
+  const tic = () => {
+    const t = aOriginal(esc.video.currentTime)
+    pintarGraf(t)
+    pintarSubs(t)
+    if (!esc.video.paused) requestAnimationFrame(tic)
+  }
+  esc.video.addEventListener('play', tic)
+  esc.video.addEventListener('seeked', tic)
+  esc.video.addEventListener('loadeddata', tic)
+
+  const nota = document.createElement('div')
+  nota.className = 'meta'
+  nota.style.marginTop = '6px'
+  nota.textContent = renderizado
+    ? 'Previa en vivo sobre el clip renderizado. Mueve el gráfico en la timeline y se actualiza sin renderizar.'
+    : 'El clip no está renderizado: la previa va sobre el original, sin el encuadre vertical.'
+  hueco.appendChild(nota)
 }
 
 function pintarComentariosDeClips () {
@@ -583,8 +685,7 @@ $('#fuente').onchange = cambiarFuente
 // --- interaccion ---
 video.addEventListener('timeupdate', () => {
   if ($('#fuente').value) { $('#rActual').textContent = $('#tActual').textContent = mmss(video.currentTime); return }
-  const c = document.getElementById('cabeza')
-  if (c) c.style.left = pct(video.currentTime) + '%'
+  tl?.marcarTiempo(video.currentTime)
   $('#rActual').textContent = $('#tActual').textContent = mmss(video.currentTime)
   const t = video.currentTime
   $('#tr').querySelectorAll('p').forEach(p =>

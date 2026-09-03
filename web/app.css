@@ -131,3 +131,38 @@ video{width:100%;background:#000;border-radius:11px;display:block}
 .tablaComp tr.corregir td{color:var(--corte)}
 .tablaComp tr.ok td{color:var(--ok)}
 .tablaComp tr.sindato td{opacity:.45}
+
+/* timeline editable */
+.tl{margin-top:12px}
+.tl-barra{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.tl-barra button{padding:2px 10px;font-size:12px}
+.tl-barra label{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
+.tl-lienzo{position:relative;height:132px;background:var(--panel2);border:1px solid var(--linea);
+  border-radius:8px;overflow:hidden;cursor:crosshair;user-select:none}
+.tl.tl-arrastrando .tl-lienzo{cursor:col-resize}
+.tl-onda{position:absolute;inset:0;background-repeat:no-repeat;opacity:.32;
+  background-position-y:center;background-size:100% 100%}
+.tl-fondo{position:absolute;inset:0}
+.tl-sil{position:absolute;top:0;bottom:0;background:rgba(255,107,90,.14)}
+.tl-voz{position:absolute;bottom:2px;height:8px;background:rgba(79,124,255,.3);border-radius:2px}
+.tl-pistas{position:absolute;left:0;right:0;top:6px}
+.tl-pista{position:relative;height:30px;margin-bottom:5px}
+.tl-etiqueta{position:absolute;left:6px;top:8px;font-size:10.5px;color:var(--suave);
+  text-transform:uppercase;letter-spacing:.06em;pointer-events:none;z-index:1}
+.tl-bloque{position:absolute;top:2px;height:26px;border-radius:5px;opacity:.88;
+  display:flex;align-items:center;overflow:hidden;min-width:8px}
+.tl-bloque:hover{opacity:1}
+.tl-titulo{flex:1;font-size:11px;color:#0d1016;font-weight:600;padding:0 4px;
+  white-space:nowrap;overflow:hidden;pointer-events:none}
+.tl-manija{width:7px;align-self:stretch;cursor:col-resize;background:rgba(0,0,0,.35);flex:none}
+.tl-manija:hover{background:rgba(0,0,0,.6)}
+.tl-cabeza{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none}
+
+/* escenario con previa en vivo */
+.escenario{position:relative;background:#000;border-radius:11px;overflow:hidden;margin:0 auto}
+.escenario video{display:block;width:100%;height:100%;object-fit:contain}
+.capa{position:absolute;inset:0;pointer-events:none;transform-origin:top left}
+.capa iframe{border:0;background:transparent;display:block}
+.capaSub{position:absolute;left:0;right:0;display:flex;justify-content:center;pointer-events:none}
+.capaSub span{background:#fff;color:#191A1A;font-weight:600;padding:.18em .5em;
+  border-radius:2px;line-height:1.35;text-align:center;white-space:pre-line}
