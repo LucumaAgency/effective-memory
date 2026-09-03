@@ -37,12 +37,15 @@ async function sondear (videoPath) {
 }
 
 // ffmpeg silencedetect -> lista de tramos silenciosos en coordenadas del ORIGINAL
-async function detectarSilencios (videoPath) {
+export async function detectarSilencios (videoPath, opciones = {}) {
+  const num = (v, def) => Number.isFinite(v) ? v : def
+  const umbral = num(Number(opciones.umbralDb), cfg.silencioDb)
+  const minimo = num(Number(opciones.duracionMin), cfg.silencioMin)
   let log = ''
   try {
     await correr(cfg.ffmpeg, [
       '-hide_banner', '-nostats', '-i', videoPath,
-      '-af', `silencedetect=noise=${cfg.silencioDb}dB:d=${cfg.silencioMin}`,
+      '-af', `silencedetect=noise=${umbral}dB:d=${minimo}`,
       '-f', 'null', '-'
     ], { onStderr: t => { log += t } })
   } catch (e) { log += e.err || '' }
@@ -59,7 +62,7 @@ async function detectarSilencios (videoPath) {
       inicio = null
     }
   }
-  return { umbralDb: cfg.silencioDb, duracionMin: cfg.silencioMin, tramos }
+  return { umbralDb: umbral, duracionMin: minimo, tramos }
 }
 
 // Muestreo grueso: un frame cada N segundos. Los frames finos se piden bajo demanda.

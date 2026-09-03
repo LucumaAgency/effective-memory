@@ -52,6 +52,16 @@
       <div class="panel" style="margin-bottom:16px">
         <h2>Silencios detectados</h2>
         <div id="sil" class="meta"></div>
+        <div class="fila" style="margin-top:10px">
+          <input type="number" id="umbral" step="1" style="max-width:74px" title="umbral en dB (más alto = detecta más)">
+          <input type="number" id="minSil" step="0.05" style="max-width:74px" title="duración mínima en segundos">
+          <button id="btnSil" style="white-space:nowrap">Recalcular</button>
+        </div>
+      </div>
+      <div class="panel" id="panelCortes" style="margin-bottom:16px;display:none">
+        <h2>Cortes</h2>
+        <div id="cortes" class="meta"></div>
+        <div id="cortesEstado" class="meta" style="margin-top:9px"></div>
       </div>
       <div class="panel">
         <h2>Entregas</h2>

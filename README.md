@@ -81,5 +81,7 @@ versiones: son binarios y se regeneran cuando haga falta.
 - **Clips verticales** — funcionando: `clips.json` en una entrega genera cortes 1080x1920
   con subtítulos quemados y los tiempos rebasados a cada clip. Cada clip admite sus propios
   comentarios, que se guardan en coordenadas del original y aparecen también en la timeline.
-- Fase 2 · cortar silencios del video completo — pendiente.
+- **Fase 2 · cortes** — funcionando: `cortes.json` genera el video recortado, con los
+  subtítulos reubicados en la nueva línea de tiempo y un mapa de traducción de tiempos.
+  El umbral de detección de silencios se puede recalcular desde la UI.
 - Fase 4 · motion graphics HTML/CSS → overlay — pendiente.

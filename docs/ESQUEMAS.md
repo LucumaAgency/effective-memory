@@ -108,3 +108,38 @@ vez y valen para todos los subtítulos que se generen después, sin repetirlos e
 
 Cada par es `[patrón, reemplazo]`; el patrón es una expresión regular de JavaScript.
 La transcripción original **no se toca**: es la salida cruda de Whisper y sirve de referencia.
+
+## entregas/vN/cortes.json  (lo escribo yo)
+
+Plan de corte no destructivo. El original no se toca; el resultado es un MP4 aparte.
+
+```json
+{
+  "version": "v4", "base": "original",
+  "crossfade": 0.03,
+  "subtitulos": true,
+  "estilo": { "tamano": 40, "margenV": 54 },
+  "conservar": [
+    { "in": 0.0,  "out": 73.8,  "razon": "intro" },
+    { "in": 76.1, "out": 240.5, "razon": "corte de muletilla en 74s" }
+  ]
+}
+```
+
+- `conservar` lista lo que **se queda**, no lo que se quita: así el resultado es explícito
+  y cada segmento puede llevar su `razon`.
+- `crossfade` son los segundos de fundido de audio en cada empalme, para que el corte no
+  suene a click. 0.03 es suficiente; por encima de 0.2 se ignora.
+- `subtitulos: true` genera el `.ass` del video completo y **reubica los cues** en la línea
+  de tiempo del resultado usando la tabla de `conservar`. Un cue que cae entero en un tramo
+  eliminado se descarta; uno que queda partido se recorta al final de su tramo.
+
+Al aplicarlo se escribe `renders/<proyecto>/cortes/<entrega>.mapa.json` con el desplazamiento
+de cada tramo. Ese archivo es el que traduce cualquier tiempo del original al del render.
+
+## Recalcular silencios
+
+`POST /api/proyectos/:slug/silencios` con `{ "umbralDb": -28, "duracionMin": 0.4 }` vuelve a
+correr `silencedetect` y reescribe `silencios.json`, sin repetir la transcripción. Desde la UI
+está en el panel *Silencios detectados*. Subir el umbral (de -32 a -25) detecta más pausas,
+porque el ruido de sala rara vez baja de -32 dB.

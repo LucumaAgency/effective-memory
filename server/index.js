@@ -3,10 +3,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { cfg, RAIZ, dirProyecto, dirProyectos } from './config.js'
 import * as P from './proyectos.js'
-import { lanzarIngest, estadoIngest, frameEn } from './ingest.js'
+import { lanzarIngest, estadoIngest, frameEn, detectarSilencios } from './ingest.js'
 import * as G from './git.js'
 import * as R from './render.js'
 import * as C from './clips.js'
+import * as X from './cortes.js'
 import { leerJson } from './util.js'
 
 const app = express()
@@ -105,6 +106,34 @@ app.post('/api/proyectos/:slug/render', ok(async (req, res) => {
 app.get('/api/proyectos/:slug/render/estado', ok(async (req, res) => {
   res.json({ ...R.estadoRender(req.params.slug), renders: R.listarRenders(req.params.slug) })
 }))
+// --- cortes de silencio ---
+app.post('/api/proyectos/:slug/cortes', ok(async (req, res) => {
+  res.json(X.aplicarCortes(req.params.slug, req.body || {}))
+}))
+app.get('/api/proyectos/:slug/cortes/estado', ok(async (req, res) => {
+  res.json({ ...X.estadoCortes(req.params.slug), hechos: X.listarCortes(req.params.slug) })
+}))
+app.get('/api/proyectos/:slug/cortes/video', ok(async (req, res) => {
+  servirVideo(req, res, path.join(X.dirCortes(req.params.slug), path.basename(req.query.archivo || '')))
+}))
+
+// Recalcular silencios con otro umbral, sin rehacer el ingest entero.
+app.post('/api/proyectos/:slug/silencios', ok(async (req, res) => {
+  const meta = metaDe(req.params.slug)
+  if (!meta) return res.status(404).json({ error: 'proyecto no encontrado' })
+  const datos = await detectarSilencios(meta.videoPath, {
+    umbralDb: Number(req.body?.umbralDb),
+    duracionMin: Number(req.body?.duracionMin)
+  })
+  fs.writeFileSync(path.join(dirProyecto(req.params.slug), 'silencios.json'),
+    JSON.stringify(datos, null, 2) + '\n', 'utf8')
+  res.json({
+    ...datos,
+    tramos: datos.tramos.length,
+    segundos: +datos.tramos.reduce((s, t) => s + t.dur, 0).toFixed(1)
+  })
+}))
+
 // --- clips verticales ---
 app.post('/api/proyectos/:slug/clips', ok(async (req, res) => {
   res.json(C.renderizarClips(req.params.slug, req.body || {}))

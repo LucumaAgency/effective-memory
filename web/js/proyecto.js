@@ -28,7 +28,7 @@ async function cargar () {
     setTimeout(cargar, 2000)
   } else $('#aviso').innerHTML = ''
 
-  pintarPista(); pintarComs(); pintarSilencios(); pintarTranscripcion(); pintarEntregas(); pintarClips()
+  pintarPista(); pintarComs(); pintarSilencios(); pintarTranscripcion(); pintarEntregas(); pintarClips(); pintarCortes()
   seguirRender().catch(() => {})
 }
 
@@ -85,6 +85,8 @@ function pintarComs () {
 
 function pintarSilencios () {
   const t = D.silencios?.tramos || []
+  if (!$('#umbral').value) $('#umbral').value = D.silencios?.umbralDb ?? -32
+  if (!$('#minSil').value) $('#minSil').value = D.silencios?.duracionMin ?? 0.35
   const total = t.reduce((s, x) => s + x.dur, 0)
   $('#sil').innerHTML = t.length
     ? `<p>${t.length} tramos · ${total.toFixed(1)}s en total (${duracion ? Math.round(total / duracion * 100) : 0}% del video)</p>` +
@@ -94,6 +96,67 @@ function pintarSilencios () {
   $('#sil').querySelectorAll('a').forEach(a => a.onclick = (e) => {
     e.preventDefault(); video.currentTime = Number(a.dataset.t)
   })
+}
+
+async function recalcularSilencios () {
+  const b = $('#btnSil'); b.disabled = true; b.textContent = 'Calculando…'
+  try {
+    const r = await api(`/api/proyectos/${slug}/silencios`, {
+      method: 'POST',
+      body: JSON.stringify({ umbralDb: Number($('#umbral').value), duracionMin: Number($('#minSil').value) })
+    })
+    alert(`${r.tramos} tramos · ${r.segundos}s en total con umbral ${r.umbralDb} dB y mínimo ${r.duracionMin}s`)
+    cargar()
+  } catch (e) { alert(e.message) } finally { b.disabled = false; b.textContent = 'Recalcular' }
+}
+$('#btnSil').onclick = recalcularSilencios
+
+function pintarCortes () {
+  const conCortes = (D.entregas || []).filter(e => e.cortes?.conservar?.length)
+  const panel = $('#panelCortes')
+  if (!conCortes.length) { panel.style.display = 'none'; return }
+  panel.style.display = ''
+
+  $('#cortes').innerHTML = conCortes.map(e => {
+    const final = e.cortes.conservar.reduce((s, x) => s + (x.out - x.in), 0)
+    const quita = (D.meta?.duracion || 0) - final
+    return `<div style="margin-bottom:11px">
+      <b style="color:var(--texto)">${escapar(e.version)}</b> · ${e.cortes.conservar.length} tramos
+      <div>Quedaría en ${mmss(final)}, quita ${quita.toFixed(1)}s${
+        e.cortes.subtitulos ? ' · con subtítulos quemados' : ''}</div>
+      <div class="fila" style="margin-top:7px">
+        <button data-cortes="${escapar(e.version)}">Aplicar cortes</button>
+      </div>
+    </div>`
+  }).join('')
+
+  $('#cortes').querySelectorAll('[data-cortes]').forEach(b => b.onclick = async () => {
+    $('#cortesEstado').innerHTML = ''
+    try {
+      await api(`/api/proyectos/${slug}/cortes`, { method: 'POST', body: JSON.stringify({ entrega: b.dataset.cortes }) })
+      seguirCortes()
+    } catch (e) {
+      $('#cortesEstado').innerHTML = `<div style="color:var(--corte)">${escapar(e.message)}</div>`
+    }
+  })
+  seguirCortes().catch(() => {})
+}
+
+let temporizadorCortes = null
+async function seguirCortes () {
+  clearTimeout(temporizadorCortes)
+  const r = await api(`/api/proyectos/${slug}/cortes/estado`)
+  const caja = $('#cortesEstado')
+  if (r.fase === 'aplicando') {
+    caja.innerHTML = `<div>Aplicando cortes de ${escapar(r.entrega || '')}: ${r.tramos} tramos, ${mmss(r.duracionFinal || 0)} finales…</div>
+      <div class="barra"><i style="width:${r.progreso || 0}%"></i></div>`
+    temporizadorCortes = setTimeout(seguirCortes, 1200)
+  } else if (r.fase === 'error') {
+    caja.innerHTML = `<div style="color:var(--corte)">Falló: ${escapar(r.error || '')}</div>`
+  } else caja.innerHTML = ''
+  $('#cortes').querySelectorAll('[data-cortes]').forEach(b => { b.disabled = r.fase === 'aplicando' })
+  cortesHechos = r.hechos || []
+  pintarFuentes(ultimasPreviews, r.fase === 'listo' ? `cortes:${r.entrega}` : null)
 }
 
 function pintarTranscripcion () {
@@ -347,10 +410,15 @@ async function seguirRender () {
   $('#entregas').querySelectorAll('[data-render]').forEach(b => { b.disabled = r.fase === 'renderizando' })
 }
 
+let cortesHechos = []
+let ultimasPreviews = []
+
 function pintarFuentes (renders, autoseleccionar) {
+  ultimasPreviews = renders
   const sel = $('#fuente')
   const actual = sel.value
   sel.innerHTML = '<option value="">Video original</option>' +
+    cortesHechos.map(c => `<option value="cortes:${escapar(c.entrega)}">cortado · ${escapar(c.entrega)} (${(c.bytes / 1048576).toFixed(1)} MB)</option>`).join('') +
     renders.map(r => `<option value="${escapar(r.archivo)}">preview · ${escapar(r.archivo)} (${(r.bytes / 1048576).toFixed(1)} MB)</option>`).join('')
   const elegido = autoseleccionar && autoseleccionar !== actual ? autoseleccionar : actual
   if ([...sel.options].some(o => o.value === elegido)) sel.value = elegido
@@ -359,15 +427,18 @@ function pintarFuentes (renders, autoseleccionar) {
 
 function cambiarFuente () {
   const archivo = $('#fuente').value
-  const nueva = archivo
-    ? `/api/proyectos/${encodeURIComponent(slug)}/render/video?archivo=${encodeURIComponent(archivo)}`
-    : `/api/proyectos/${encodeURIComponent(slug)}/video`
+  const nueva = !archivo
+    ? `/api/proyectos/${encodeURIComponent(slug)}/video`
+    : archivo.startsWith('cortes:')
+      ? `/api/proyectos/${encodeURIComponent(slug)}/cortes/video?archivo=${encodeURIComponent(archivo.slice(7) + '.mp4')}`
+      : `/api/proyectos/${encodeURIComponent(slug)}/render/video?archivo=${encodeURIComponent(archivo)}`
   if (video.dataset.fuente === nueva) return
   video.dataset.fuente = nueva
   video.src = nueva
-  $('#notaFuente').textContent = archivo
-    ? 'La preview empieza en 0:00 aunque cubra otro tramo del original.'
-    : ''
+  $('#notaFuente').textContent = !archivo ? ''
+    : archivo.startsWith('cortes:')
+      ? 'Versión cortada: la timeline de arriba sigue siendo la del original.'
+      : 'La preview empieza en 0:00 aunque cubra otro tramo del original.'
 }
 $('#fuente').onchange = cambiarFuente
 
