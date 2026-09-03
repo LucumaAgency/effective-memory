@@ -49,8 +49,8 @@ produjo. Sin esto, iterar tres veces sería irreversible.
 - **3 · subtítulos** (hecho): `.ass` estilizado, preview quemada desde la UI.
 - **clips verticales** (hecho): `clips.json` → 1080x1920 con subtítulos y comentarios propios.
 - **2 · cortes** (pendiente): aplicar `cortes.json` con ffmpeg, comparar versiones en el player.
-- **4 · motion graphics** (pendiente): overlays HTML/CSS grabados con Puppeteer a PNG con alpha,
-  compuestos con ffmpeg.
+- **4 · motion graphics** (hecho): HTML animado capturado fotograma a fotograma con Chrome o
+  Edge, cacheado como WebM con alfa y compuesto sobre los clips.
 
 ## Endpoints
 

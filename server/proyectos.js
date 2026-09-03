@@ -46,7 +46,8 @@ export function entregas (slug) {
       archivos: fs.readdirSync(path.join(dir, d.name)),
       nota: leerJson(path.join(dir, d.name, 'nota.json'), null),
       plan: leerJson(path.join(dir, d.name, 'clips.json'), null),
-      cortes: leerJson(path.join(dir, d.name, 'cortes.json'), null)
+      cortes: leerJson(path.join(dir, d.name, 'cortes.json'), null),
+      graficos: leerJson(path.join(dir, d.name, 'graficos.json'), null)
     }))
     .sort((a, b) => a.version.localeCompare(b.version))
 }

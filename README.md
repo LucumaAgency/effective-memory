@@ -74,6 +74,13 @@ Atajos: `espacio` play/pausa · `←/→` 2 s · `C` comentar en el segundo actu
 Las previews se guardan en `<DATA_REPO>/renders/<proyecto>/` y están fuera del control de
 versiones: son binarios y se regeneran cuando haga falta.
 
+## Motion graphics
+
+Se pide comentando en un clip con tipo `gráfico`. Claude escribe el HTML animado y lo entrega
+en `entregas/vN/graficos/`. La app lo captura fotograma a fotograma con Chrome (o Edge), lo
+guarda como WebM con alfa y lo compone sobre el clip. El botón **vista previa** muestra el
+gráfico sobre un frame real en un par de segundos, con una barra para recorrer la animación.
+
 ## Estado
 
 - **Fase 1 · circuito completo** — listo: ingest, dashboard, comentarios, push/pull.
@@ -84,4 +91,4 @@ versiones: son binarios y se regeneran cuando haga falta.
 - **Fase 2 · cortes** — funcionando: `cortes.json` genera el video recortado, con los
   subtítulos reubicados en la nueva línea de tiempo y un mapa de traducción de tiempos.
   El umbral de detección de silencios se puede recalcular desde la UI.
-- Fase 4 · motion graphics HTML/CSS → overlay — pendiente.
+

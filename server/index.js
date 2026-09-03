@@ -8,6 +8,8 @@ import * as G from './git.js'
 import * as R from './render.js'
 import * as C from './clips.js'
 import * as X from './cortes.js'
+import * as GR from './graficos.js'
+import { buscarNavegador } from './navegador.js'
 import { leerJson } from './util.js'
 
 const app = express()
@@ -106,6 +108,37 @@ app.post('/api/proyectos/:slug/render', ok(async (req, res) => {
 app.get('/api/proyectos/:slug/render/estado', ok(async (req, res) => {
   res.json({ ...R.estadoRender(req.params.slug), renders: R.listarRenders(req.params.slug) })
 }))
+// --- graficos ---
+// Vista previa barata: el grafico sobre un frame fijo, en PNG. Iterar sobre una
+// imagen de dos segundos en vez de sobre un render completo.
+app.get('/api/proyectos/:slug/graficos/preview', ok(async (req, res) => {
+  const { slug } = req.params
+  const { entrega, id } = req.query
+  const plan = GR.leerPlanGraficos(slug, entrega)
+  const g = (plan?.graficos || []).find(x => x.id === id)
+  if (!g) return res.status(404).json({ error: 'gráfico no encontrado' })
+
+  const meta = metaDe(slug)
+  const tAnim = req.query.t == null ? Math.min(0.8, (g.out - g.in) / 2) : Number(req.query.t)
+
+  // Si el clip ya esta renderizado usamos ese como fondo: es lo que se vera de verdad.
+  const clip = (C.leerPlan(slug, entrega)?.clips || []).find(c => c.id === g.clip)
+  const renderClip = path.join(C.dirClips(slug), `${entrega}__${g.clip}.mp4`)
+  const usarClip = clip && fs.existsSync(renderClip)
+
+  const png = await GR.previsualizar(slug, entrega, g, {
+    fuente: usarClip ? renderClip : meta.videoPath,
+    tFuente: usarClip ? (g.in - clip.in + tAnim) : (g.in + tAnim),
+    tAnim
+  })
+  res.set('Cache-Control', 'no-store').sendFile(png)
+}))
+
+app.get('/api/proyectos/:slug/graficos', ok(async (req, res) => {
+  const plan = GR.leerPlanGraficos(req.params.slug, req.query.entrega)
+  res.json({ graficos: plan?.graficos || [], navegador: buscarNavegador() })
+}))
+
 // --- cortes de silencio ---
 app.post('/api/proyectos/:slug/cortes', ok(async (req, res) => {
   res.json(X.aplicarCortes(req.params.slug, req.body || {}))

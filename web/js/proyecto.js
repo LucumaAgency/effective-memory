@@ -23,8 +23,16 @@ async function cargar () {
       await api(`/api/proyectos/${slug}/ingest`, { method: 'POST' })
       setTimeout(cargar, 400)
     }
-  } else if (!['listo'].includes(D.estado.fase)) {
+  } else if (D.estado.fase === 'sin-ingest') {
+    $('#aviso').innerHTML = `<div class="aviso">Este proyecto no se ha procesado todavía.
+      <div style="margin-top:9px"><button id="btnIngest">Procesar ahora</button></div></div>`
+    $('#btnIngest').onclick = async () => {
+      await api(`/api/proyectos/${slug}/ingest`, { method: 'POST' }); setTimeout(cargar, 500)
+    }
+  } else if (D.estado.fase !== 'listo') {
     $('#aviso').innerHTML = `<div class="aviso">Procesando: ${FASES[D.estado.fase] || D.estado.fase} ${Math.round(D.estado.progreso)}%. Puedes ver el video y comentar mientras tanto.</div>`
+    // Solo se repite mientras haya algo en curso: antes un proyecto sin ingestar
+    // recargaba la pagina cada 2s para siempre y borraba lo que tuvieras abierto.
     setTimeout(cargar, 2000)
   } else $('#aviso').innerHTML = ''
 
@@ -259,6 +267,7 @@ function pintarClips () {
         <button data-comentarclip="${escapar(c.id)}">Añadir</button>
       </div>
       <div class="lista" data-comsclip="${escapar(c.id)}"></div>
+      <div class="graficos" data-grafs="${escapar(c.id)}"></div>
     </div>`).join('')
 
   $('#clips').querySelectorAll('.verMas').forEach(b =>
@@ -295,6 +304,7 @@ function pintarClips () {
     i.addEventListener('keydown', e => { if (e.key === 'Enter') comentarClip(i.dataset.textoclip) }))
 
   pintarComentariosDeClips()
+  pintarGraficos(entrega)
   aplicarEstadoClips(ultimoEstado)
   seguirClips().catch(() => {})
 }
@@ -314,6 +324,44 @@ async function lanzarClips (ids) {
 
 $('#entregaClips').onchange = (e) => { entregaVisible = e.target.value; pintarClips() }
 $('#btnTodos').onclick = () => lanzarClips(null)
+
+function pintarGraficos (entrega) {
+  const todos = entrega.graficos?.graficos || []
+  $('#clips').querySelectorAll('[data-grafs]').forEach(caja => {
+    const suyos = todos.filter(g => g.clip === caja.dataset.grafs)
+    if (!suyos.length) { caja.innerHTML = ''; caja.style.display = 'none'; return }
+    caja.style.display = ''
+    caja.innerHTML = suyos.map(g => `
+      <div class="graf" data-graf="${escapar(g.id)}">
+        <div class="cab">
+          <b>gráfico</b>
+          <span class="meta">${mmss(g.in)} → ${mmss(g.out)} · ${escapar(g.archivo)}</span>
+          <button data-prev="${escapar(g.id)}">vista previa</button>
+        </div>
+        <div class="hueco"></div>
+      </div>`).join('')
+
+    caja.querySelectorAll('[data-prev]').forEach(b => b.onclick = () => {
+      const g = suyos.find(x => x.id === b.dataset.prev)
+      const hueco = b.closest('.graf').querySelector('.hueco')
+      if (hueco.innerHTML) { hueco.innerHTML = ''; return }
+      const dur = (g.out - g.in).toFixed(2)
+      hueco.innerHTML = `<img alt="vista previa">
+        <input type="range" min="0" max="${dur}" step="0.05" value="${Math.min(0.8, dur / 2).toFixed(2)}">
+        <div class="meta" style="text-align:center">instante <span>0.80</span>s de ${dur}s</div>`
+      const img = hueco.querySelector('img')
+      const barra = hueco.querySelector('input')
+      const etiqueta = hueco.querySelector('span')
+      const refrescar = () => {
+        etiqueta.textContent = Number(barra.value).toFixed(2)
+        img.src = `/api/proyectos/${encodeURIComponent(slug)}/graficos/preview` +
+          `?entrega=${encodeURIComponent(entrega.version)}&id=${encodeURIComponent(g.id)}&t=${barra.value}`
+      }
+      barra.oninput = refrescar
+      refrescar()
+    })
+  })
+}
 
 function pintarComentariosDeClips () {
   const items = D.comentarios?.items || []

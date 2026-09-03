@@ -143,3 +143,51 @@ de cada tramo. Ese archivo es el que traduce cualquier tiempo del original al de
 correr `silencedetect` y reescribe `silencios.json`, sin repetir la transcripción. Desde la UI
 está en el panel *Silencios detectados*. Subir el umbral (de -32 a -25) detecta más pausas,
 porque el ruido de sala rara vez baja de -32 dB.
+
+## entregas/vN/graficos.json + entregas/vN/graficos/*.html
+
+Motion graphics. El HTML vive junto a su entrega, no en el repo de la app: la identidad
+cambia según el proyecto, así que cada gráfico se escribe a medida. Cuando un patrón se
+repita lo bastante, ese sí se convierte en plantilla reutilizable.
+
+```json
+{ "graficos": [
+  { "id": "g01", "clip": "c01", "archivo": "cita.html",
+    "in": 405.4, "out": 411.5,
+    "ancho": 1080, "alto": 1920, "x": 0, "y": 0,
+    "datos": { "texto": "Frank Gehry en el Perú\nhubiera sido miserable" } }
+] }
+```
+
+`in` y `out` van en coordenadas del original, como todo lo demás; el motor calcula solo
+dónde cae dentro del clip.
+
+### Cómo se escribe el HTML
+
+Los datos llegan en `window.DATOS` antes de que corra nada de la página.
+
+**Todo lo animado tiene que ser una animación CSS o de la Web Animations API.** El motor no
+graba en tiempo real: fija el reloj de cada animación a un instante exacto y captura. Por eso
+`setTimeout` y `requestAnimationFrame` **no funcionan**. Si necesitas algo que CSS no cubre,
+expón `window.dibujar(t)` y el motor la llama con el segundo actual antes de cada captura.
+
+El fondo debe ser transparente (`background: transparent`): la captura usa `omitBackground`,
+y de ahí sale el canal alfa.
+
+### El pipeline
+
+```
+HTML  →  Chrome headless, fotograma a fotograma  →  PNG con alfa  →  WebM (VP9, yuva420p)  →  overlay
+```
+
+Se captura fijando `animation.currentTime` en vez de grabar en tiempo real, así el resultado
+es idéntico en cualquier máquina y reproducible entre iteraciones. El WebM se cachea y solo
+se regenera si el HTML cambió, así que recomponer un clip es instantáneo.
+
+`GET /api/proyectos/:slug/graficos/preview?entrega=v5&id=g01&t=0.8` devuelve un PNG con el
+gráfico sobre un frame del clip, en un par de segundos. Es para iterar sin renderizar.
+
+### Navegador
+
+No se instala ninguno: se busca Chrome y, si no está, **Edge**, que viene en todo Windows.
+Se puede forzar con `NAVEGADOR=` en el `.env`.

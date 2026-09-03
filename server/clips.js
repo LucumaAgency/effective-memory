@@ -5,6 +5,7 @@ import { cfg, dirProyecto } from './config.js'
 import { leerJson } from './util.js'
 import { generarAss } from './subtitulos.js'
 import { dirRenders } from './render.js'
+import { leerPlanGraficos, generar as generarGrafico } from './graficos.js'
 
 export const dirClips = (slug) => path.join(dirRenders(slug), 'clips')
 
@@ -72,6 +73,12 @@ function construirFiltro (plan, clip) {
 
 const claveDe = (entrega, id) => `${entrega}__${id}`
 
+/** Gráficos de esta entrega que caen sobre este clip. */
+function graficosDe (slug, entrega, clip) {
+  const plan = leerPlanGraficos(slug, entrega)
+  return (plan?.graficos || []).filter(g => g.clip === clip.id)
+}
+
 async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
   const dir = dirClips(slug)
   fs.mkdirSync(dir, { recursive: true })
@@ -88,12 +95,33 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
   fs.writeFileSync(ass, texto, 'utf8')
 
   const salida = path.join(dir, `${clave}.mp4`)
-  const filtro = `${construirFiltro(plan, clip)};[v]ass=${clave}.ass[vout]`
+
+  // Cada grafico entra como una entrada mas y se superpone en su ventana de tiempo,
+  // que va en coordenadas del original igual que todo lo demas.
+  const graficos = graficosDe(slug, entrega, clip)
+  const entradas = []
+  let cadena = `${construirFiltro(plan, clip)};[v]ass=${clave}.ass[v0]`
+  for (let i = 0; i < graficos.length; i++) {
+    const g = graficos[i]
+    const webm = await generarGrafico(slug, entrega, g)
+    entradas.push('-i', webm)
+    const desde = +(g.in - clip.in).toFixed(3)
+    const hasta = +(g.out - clip.in).toFixed(3)
+    const etiqueta = i === graficos.length - 1 ? 'vout' : `v${i + 1}`
+    // setpts retrasa el grafico hasta su momento; sin esto empezaria a correr
+    // en el segundo 0 del clip y para cuando toca mostrarlo ya habria terminado.
+    cadena += `;[${i + 1}:v]setpts=PTS+${desde}/TB[g${i}]`
+    cadena += `;[v${i}][g${i}]overlay=${g.x || 0}:${g.y || 0}:` +
+      `enable='between(t,${desde},${hasta})':eof_action=pass[${etiqueta}]`
+  }
+  if (!graficos.length) cadena = cadena.replace(/\[v0\]$/, '[vout]')
+
   const args = [
     '-hide_banner', '-loglevel', 'error', '-y',
     '-ss', String(clip.in), '-t', String(Math.max(0.5, clip.out - clip.in)),
     '-i', meta.videoPath,
-    '-filter_complex', filtro, '-map', '[vout]', '-map', '0:a?',
+    ...entradas,
+    '-filter_complex', cadena, '-map', '[vout]', '-map', '0:a?',
     '-c:v', 'libx264', '-crf', '20', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart',
     salida

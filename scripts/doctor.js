@@ -40,6 +40,10 @@ try {
   linea(false, 'librerias CUDA', 'pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"  (sin esto va por CPU)')
 }
 
+const { buscarNavegador } = await import('../server/navegador.js')
+const nav = buscarNavegador()
+linea(!!nav, 'navegador (motion graphics)', nav || 'no encuentro Chrome ni Edge; pon la ruta en NAVEGADOR= del .env')
+
 const hayRepo = fs.existsSync(cfg.dataRepo)
 linea(hayRepo, 'repo de datos', cfg.dataRepo)
 if (hayRepo) {
