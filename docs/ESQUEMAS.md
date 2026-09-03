@@ -146,7 +146,11 @@ porque el ruido de sala rara vez baja de -32 dB.
 
 ## entregas/vN/graficos.json + entregas/vN/graficos/*.html
 
-Motion graphics. El HTML vive junto a su entrega, no en el repo de la app: la identidad
+Motion graphics. **`graficos.json` tiene que estar en la misma entrega que el `clips.json`
+al que apunta**, porque los gráficos se referencian por id de clip. Si van en entregas
+distintas, el motor no los encuentra y el clip se renderiza sin ellos, sin avisar.
+
+El HTML vive junto a su entrega, no en el repo de la app: la identidad
 cambia según el proyecto, así que cada gráfico se escribe a medida. Cuando un patrón se
 repita lo bastante, ese sí se convierte en plantilla reutilizable.
 
