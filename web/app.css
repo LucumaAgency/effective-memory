@@ -81,8 +81,23 @@ video{width:100%;background:#000;border-radius:11px;display:block}
 .clip .razon{color:var(--suave);margin-top:3px;font-size:12px}
 .clip .pie{display:flex;gap:7px;align-items:center;margin-top:9px}
 .clip .pie button{padding:3px 9px;font-size:12px}
-.vertical{max-width:270px;margin:9px auto 0;display:block;border-radius:9px;background:#000}
+.cabClips{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.grilla{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(290px,1fr))}
+.clip{display:flex;flex-direction:column}
+.vertical{aspect-ratio:9/16;max-height:340px;width:auto;max-width:100%;object-fit:contain;
+  margin:10px auto 0;display:block;border-radius:9px;background:#000}
+.estadoClip{font-size:11.5px;padding:2px 8px;border-radius:20px;border:1px solid var(--linea);color:var(--suave)}
+.estadoClip.listo{color:var(--ok);border-color:#2c5c46}
+.estadoClip.curso{color:var(--acento);border-color:#2f4685}
+.estadoClip.fallo{color:var(--corte);border-color:#6b3229}
+.clip .razon{display:none}
+.clip.abierto .razon{display:block}
+.verMas{background:none;border:0;color:var(--suave);padding:2px 0;font-size:11.5px;
+  text-decoration:underline;cursor:pointer}
+.verMas:hover{color:var(--acento)}
 .clip .comentar{display:flex;gap:6px;margin-top:9px}
+.clip .pie{margin-top:8px}
+.clip .gancho{margin-top:6px}
 .clip .comentar input{padding:5px 8px;font-size:12.5px}
 .clip .comentar select{max-width:96px;padding:5px 6px;font-size:12px}
 .clip .comentar button{padding:4px 10px;font-size:12px;white-space:nowrap}

@@ -143,65 +143,82 @@ function pintarEntregas () {
   })
 }
 
-let planClips = {}   // id -> {in, out, ...}
+let planClips = {}      // id -> clip de la entrega visible
+let entregaVisible = null
+let ultimoEstado = { fase: 'inactivo', hechos: [] }
+
+function entregasConClips () {
+  return (D.entregas || []).filter(e => e.plan?.clips?.length)
+}
 
 function pintarClips () {
-  const conPlan = (D.entregas || []).filter(e => e.plan?.clips?.length)
-  planClips = {}
-  for (const e of conPlan) for (const c of e.plan.clips) planClips[c.id] = c
+  const conPlan = entregasConClips()
   const panel = $('#panelClips')
   if (!conPlan.length) { panel.style.display = 'none'; return }
   panel.style.display = ''
 
-  $('#clips').innerHTML = conPlan.map(e => `
-    <div class="meta" style="margin-bottom:8px">${escapar(e.version)} · ${e.plan.clips.length} clips
-      <button data-todos="${escapar(e.version)}" style="padding:3px 9px;font-size:12px;margin-left:7px">Renderizar todos</button></div>
-    ${e.plan.clips.map(c => `
-      <div class="clip" id="clip_${escapar(e.version)}__${escapar(c.id)}">
-        <b>${escapar(c.titulo || c.id)}</b>
-        <div class="meta"><span class="t" data-t="${c.in}">${mmss(c.in)} → ${mmss(c.out)}</span> · ${Math.round(c.out - c.in)}s</div>
-        ${c.gancho ? `<div class="gancho">“${escapar(c.gancho)}”</div>` : ''}
-        ${c.razon ? `<div class="razon">${escapar(c.razon)}</div>` : ''}
-        <div class="pie">
-          <button data-clip="${escapar(c.id)}" data-entrega="${escapar(e.version)}">Renderizar</button>
-          <span class="meta" data-listo="${escapar(c.id)}"></span>
-        </div>
-        <div class="comentar">
-          <select data-tipoclip="${escapar(c.id)}">
-            <option value="nota" selected>nota</option>
-            <option value="corte">corte</option>
-            <option value="subtitulo">subtítulo</option>
-            <option value="grafico">gráfico</option>
-          </select>
-          <input data-textoclip="${escapar(c.id)}" placeholder="Comentar este clip…">
-          <button data-comentarclip="${escapar(c.id)}">Añadir</button>
-        </div>
-        <div class="lista" data-comsclip="${escapar(c.id)}"></div>
-      </div>`).join('')}`).join('')
+  // Una entrega a la vez: con varias versiones la lista se volvia interminable.
+  if (!conPlan.some(e => e.version === entregaVisible)) {
+    entregaVisible = conPlan[conPlan.length - 1].version
+  }
+  $('#entregaClips').innerHTML = conPlan.map(e =>
+    `<option value="${escapar(e.version)}"${e.version === entregaVisible ? ' selected' : ''}>${escapar(e.version)} · ${e.plan.clips.length} clips</option>`).join('')
+
+  const entrega = conPlan.find(e => e.version === entregaVisible)
+  planClips = Object.fromEntries(entrega.plan.clips.map(c => [c.id, c]))
+
+  const total = entrega.plan.clips.reduce((s, c) => s + (c.out - c.in), 0)
+  $('#resumenClips').textContent =
+    `${entrega.plan.clips.length} clips · ${mmss(total)} en total` +
+    (entrega.nota?.resumen ? '' : '')
+
+  $('#clips').innerHTML = entrega.plan.clips.map(c => `
+    <div class="clip" id="clip_${escapar(entrega.version)}__${escapar(c.id)}" data-id="${escapar(c.id)}">
+      <div style="display:flex;align-items:center;gap:8px">
+        <b style="flex:1">${escapar(c.titulo || c.id)}</b>
+        <span class="estadoClip" data-estado="${escapar(c.id)}">sin renderizar</span>
+      </div>
+      <div class="meta"><span class="t" data-t="${c.in}">${mmss(c.in)} → ${mmss(c.out)}</span> · ${Math.round(c.out - c.in)}s</div>
+      ${c.gancho ? `<div class="gancho">“${escapar(c.gancho)}”</div>` : ''}
+      ${c.razon ? `<button class="verMas">por qué este corte</button><div class="razon">${escapar(c.razon)}</div>` : ''}
+      <div class="pie">
+        <button data-clip="${escapar(c.id)}">Renderizar</button>
+      </div>
+      <div class="soporte"></div>
+      <div class="comentar">
+        <select data-tipoclip="${escapar(c.id)}">
+          <option value="nota" selected>nota</option>
+          <option value="corte">corte</option>
+          <option value="subtitulo">subtítulo</option>
+          <option value="grafico">gráfico</option>
+        </select>
+        <input data-textoclip="${escapar(c.id)}" placeholder="Comentar este clip…">
+        <button data-comentarclip="${escapar(c.id)}">Añadir</button>
+      </div>
+      <div class="lista" data-comsclip="${escapar(c.id)}"></div>
+    </div>`).join('')
+
+  $('#clips').querySelectorAll('.verMas').forEach(b =>
+    b.onclick = () => b.closest('.clip').classList.toggle('abierto'))
 
   $('#clips').querySelectorAll('.t').forEach(el =>
     el.onclick = () => { $('#fuente').value = ''; cambiarFuente(); video.currentTime = Number(el.dataset.t); video.play() })
 
-  const lanzar = (entrega, ids) => api(`/api/proyectos/${slug}/clips`, {
-    method: 'POST', body: JSON.stringify({ entrega, ids })
-  }).then(seguirClips).catch(e => alert(e.message))
-
   $('#clips').querySelectorAll('[data-clip]').forEach(b =>
-    b.onclick = () => lanzar(b.dataset.entrega, [b.dataset.clip]))
+    b.onclick = () => lanzarClips([b.dataset.clip]))
 
   const comentarClip = async (id) => {
-    const campo = $(`[data-textoclip="${id}"]`)
+    const campo = document.querySelector(`#clips [data-textoclip="${id}"]`)
     const texto = campo.value.trim()
     if (!texto) return
-    // El tiempo se guarda en coordenadas del ORIGINAL: inicio del clip + lo que
-    // marque su reproductor. Asi el comentario tambien cae en la timeline grande.
+    // Coordenadas del ORIGINAL: inicio del clip + posicion de su reproductor.
     const reproductor = document.querySelector(`[id$="__${id}"] video`)
     const dentro = reproductor ? reproductor.currentTime : 0
     await api(`/api/proyectos/${slug}/comentarios`, {
       method: 'POST',
       body: JSON.stringify({
         t: +(planClips[id].in + dentro).toFixed(2),
-        tipo: $(`[data-tipoclip="${id}"]`).value,
+        tipo: document.querySelector(`#clips [data-tipoclip="${id}"]`).value,
         clip: id,
         texto
       })
@@ -215,18 +232,31 @@ function pintarClips () {
     i.addEventListener('keydown', e => { if (e.key === 'Enter') comentarClip(i.dataset.textoclip) }))
 
   pintarComentariosDeClips()
-  $('#clips').querySelectorAll('[data-todos]').forEach(b =>
-    b.onclick = () => lanzar(b.dataset.todos, null))
-
+  aplicarEstadoClips(ultimoEstado)
   seguirClips().catch(() => {})
 }
+
+async function lanzarClips (ids) {
+  $('#clipsEstado').innerHTML = ''
+  try {
+    await api(`/api/proyectos/${slug}/clips`, {
+      method: 'POST', body: JSON.stringify({ entrega: entregaVisible, ids })
+    })
+    seguirClips()
+  } catch (e) {
+    // El error va al panel, no a un alert que se cierra y no deja rastro.
+    $('#clipsEstado').innerHTML = `<div style="color:var(--corte)">No se pudo lanzar: ${escapar(e.message)}</div>`
+  }
+}
+
+$('#entregaClips').onchange = (e) => { entregaVisible = e.target.value; pintarClips() }
+$('#btnTodos').onclick = () => lanzarClips(null)
 
 function pintarComentariosDeClips () {
   const items = D.comentarios?.items || []
   $('#clips').querySelectorAll('[data-comsclip]').forEach(caja => {
     const id = caja.dataset.comsclip
-    const suyos = items.filter(c => c.clip === id)
-    caja.innerHTML = suyos.map(c => {
+    caja.innerHTML = items.filter(c => c.clip === id).map(c => {
       const dentro = Math.max(0, c.t - (planClips[id]?.in || 0))
       return `<div class="${c.tipo} ${c.estado === 'resuelto' ? 'resuelto' : ''}">
         <span class="quitar" data-borrarcom="${c.id}" title="Borrar">✕</span>
@@ -239,32 +269,62 @@ function pintarComentariosDeClips () {
   })
 }
 
-let temporizadorClips = null
-async function seguirClips () {
-  clearTimeout(temporizadorClips)
-  const r = await api(`/api/proyectos/${slug}/clips/estado`)
+/** Pinta el estado de la cola sobre las tarjetas ya dibujadas. */
+function aplicarEstadoClips (r) {
   const caja = $('#clipsEstado')
+  const enCurso = r.fase === 'renderizando'
 
-  if (r.fase === 'renderizando') {
-    caja.innerHTML = `<div>Renderizando ${escapar(r.actual || '')} (${r.i + 1} de ${r.total})…</div>
-      <div class="barra"><i style="width:${((r.i) / r.total) * 100}%"></i></div>`
-    temporizadorClips = setTimeout(seguirClips, 1200)
+  if (enCurso) {
+    caja.innerHTML = `<div>Renderizando <b>${escapar(r.actual || '')}</b> de ${escapar(r.entrega || '')} (${r.i + 1} de ${r.total})…</div>
+      <div class="barra"><i style="width:${(r.i / r.total) * 100}%"></i></div>`
   } else if (r.fase === 'error') {
     caja.innerHTML = `<div style="color:var(--corte)">Falló en ${escapar(r.actual || '')}: ${escapar(r.error || '')}</div>`
   } else caja.innerHTML = ''
 
-  $('#clips').querySelectorAll('[data-clip],[data-todos]').forEach(b => { b.disabled = r.fase === 'renderizando' })
+  $('#clips').querySelectorAll('[data-clip]').forEach(b => { b.disabled = enCurso })
+  $('#btnTodos').disabled = enCurso
 
-  for (const hecho of r.hechos || []) {
-    const caja = document.getElementById(`clip_${hecho.clave}`)
-    if (!caja || caja.querySelector('video')) continue
-    const etiqueta = caja.querySelector('[data-listo]')
-    if (etiqueta) etiqueta.textContent = `${(hecho.bytes / 1048576).toFixed(1)} MB`
+  // Aceptamos tambien la forma antigua (sin "clave") por si el server no se
+  // reinicio tras actualizar: sin esto el clip se renderiza y no aparece nunca.
+  const hechos = new Map()
+  for (const h of r.hechos || []) hechos.set(h.clave || h.id, h)
+  $('#clips').querySelectorAll('.clip').forEach(tarjeta => {
+    const id = tarjeta.dataset.id
+    const etiqueta = tarjeta.querySelector('[data-estado]')
+    const hecho = hechos.get(`${entregaVisible}__${id}`) || hechos.get(id)
+
+    if (enCurso && r.actual === id && r.entrega === entregaVisible) {
+      etiqueta.textContent = 'renderizando…'; etiqueta.className = 'estadoClip curso'
+    } else if (r.fase === 'error' && r.actual === id) {
+      etiqueta.textContent = 'falló'; etiqueta.className = 'estadoClip fallo'
+    } else if (hecho) {
+      etiqueta.textContent = `${(hecho.bytes / 1048576).toFixed(1)} MB`
+      etiqueta.className = 'estadoClip listo'
+    } else {
+      etiqueta.textContent = 'sin renderizar'; etiqueta.className = 'estadoClip'
+    }
+
+    const soporte = tarjeta.querySelector('.soporte')
+    const url = hecho
+      ? `/api/proyectos/${encodeURIComponent(slug)}/clips/video?archivo=${encodeURIComponent(hecho.archivo)}&v=${hecho.bytes}`
+      : null
+    const actual = soporte.querySelector('video')
+    if (!url) { soporte.innerHTML = ''; return }
+    if (actual && actual.dataset.url === url) return
+    soporte.innerHTML = ''
     const v = document.createElement('video')
     v.className = 'vertical'; v.controls = true; v.preload = 'none'
-    v.src = `/api/proyectos/${encodeURIComponent(slug)}/clips/video?archivo=${encodeURIComponent(hecho.archivo)}`
-    caja.appendChild(v)
-  }
+    v.src = url; v.dataset.url = url
+    soporte.appendChild(v)
+  })
+}
+
+let temporizadorClips = null
+async function seguirClips () {
+  clearTimeout(temporizadorClips)
+  ultimoEstado = await api(`/api/proyectos/${slug}/clips/estado`)
+  aplicarEstadoClips(ultimoEstado)
+  if (ultimoEstado.fase === 'renderizando') temporizadorClips = setTimeout(seguirClips, 1200)
 }
 
 let temporizadorRender = null

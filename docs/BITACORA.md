@@ -205,6 +205,14 @@ También se fusionaron dos clips sueltos de la v2 en un solo argumento completo,
 deliberadamente en 28 segundos: es una anécdota y estirarla la diluye. **El límite no es una
 cuota que haya que llenar.**
 
+### Clips en rejilla
+Con nueve clips el panel lateral obligaba a scrollear demasiado. La sección pasó a ocupar el
+ancho completo debajo de la transcripción, en una rejilla que se adapta al ancho de la
+ventana, y **muestra una sola entrega a la vez** con un selector. Cada tarjeta lleva su propio
+estado (`sin renderizar` / `renderizando` / tamaño en MB / `falló`), así que ya no hay que
+adivinar si algo pasó. El *por qué* de cada corte quedó plegado tras un enlace, que estorbaba
+más de lo que ayudaba una vez leído.
+
 ---
 
 ## 5. Lo que se rompió, y por qué
@@ -219,6 +227,7 @@ Vale la pena guardarlo: casi todo fue entorno de Windows, no lógica.
 | `ffprobe ... Permission denied` | Se pegó la ruta de una **carpeta**, no del archivo. `existsSync` devuelve `true` para directorios y la validación la dejó pasar |
 | El server se caía con `ERR_HTTP_HEADERS_SENT` | El manejador de errores respondía cuando las cabeceras ya habían salido |
 | `Library cublas64_12.dll is not found` | En Windows las DLL de `nvidia-cublas-cu12` quedan en `site-packages` y **no** en el PATH, así que ctranslate2 no las encuentra aunque estén instaladas |
+| Renderizar un clip nuevo "no hacía nada" | Se renderizaba, pero la UI buscaba el archivo por su nombre viejo (sin el prefijo de entrega) y nunca lo mostraba. Pasa si el server no se reinicia tras actualizar |
 | `Cannot fast-forward to multiple branches` | `git pull` decide qué fusionar leyendo `branch.<rama>.merge`. Si esa config lista más de una referencia, **ningún argumento de línea de comandos lo salva**: hubo que pasar a `fetch` + `merge FETCH_HEAD` |
 
 Arreglos preventivos que salieron de ahí: `npm run doctor` verifica el entorno antes de que

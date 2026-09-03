@@ -53,17 +53,24 @@
         <h2>Silencios detectados</h2>
         <div id="sil" class="meta"></div>
       </div>
-      <div class="panel" id="panelClips" style="margin-bottom:16px;display:none">
-        <h2>Clips</h2>
-        <div id="clips"></div>
-        <div id="clipsEstado" class="meta" style="margin-top:9px"></div>
-      </div>
       <div class="panel">
         <h2>Entregas</h2>
         <div id="entregas" class="meta"></div>
         <div id="renderEstado" class="meta" style="margin-top:10px"></div>
       </div>
     </div>
+  </div>
+
+  <div class="panel" id="panelClips" style="margin-top:20px;display:none">
+    <div class="cabClips">
+      <h2 style="margin:0">Clips</h2>
+      <select id="entregaClips" style="max-width:190px"></select>
+      <span class="meta" id="resumenClips"></span>
+      <span class="sep" style="flex:1"></span>
+      <button id="btnTodos">Renderizar todos</button>
+    </div>
+    <div id="clipsEstado" class="meta"></div>
+    <div class="grilla" id="clips"></div>
   </div>
 </div>
 <script type="module" src="/js/proyecto.js"></script>

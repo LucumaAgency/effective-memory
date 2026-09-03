@@ -111,8 +111,15 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
   return salida
 }
 
+const ATASCO_MS = 10 * 60 * 1000
+
 export function renderizarClips (slug, { entrega, ids = null }) {
-  if (cola.get(slug)?.fase === 'renderizando') return estadoClips(slug)
+  const previo = cola.get(slug)
+  // Si un render murio de forma rara, el estado se quedaria en "renderizando"
+  // para siempre y los botones bloqueados. Pasados 10 minutos sin avanzar, seguimos.
+  if (previo?.fase === 'renderizando' && Date.now() - (previo.latido || 0) < ATASCO_MS) {
+    return estadoClips(slug)
+  }
 
   const plan = leerPlan(slug, entrega)
   if (!plan) throw new Error(`la entrega ${entrega} no tiene clips.json`)
@@ -123,10 +130,10 @@ export function renderizarClips (slug, { entrega, ids = null }) {
   const lista = (plan.clips || []).filter(c => !ids || ids.includes(c.id))
   if (!lista.length) throw new Error('no hay clips que renderizar')
 
-  cola.set(slug, { fase: 'renderizando', i: 0, total: lista.length, actual: lista[0].id, entrega })
+  cola.set(slug, { fase: 'renderizando', i: 0, total: lista.length, actual: lista[0].id, entrega, latido: Date.now() })
   ;(async () => {
     for (let i = 0; i < lista.length; i++) {
-      cola.set(slug, { fase: 'renderizando', i, total: lista.length, actual: lista[i].id, entrega })
+      cola.set(slug, { fase: 'renderizando', i, total: lista.length, actual: lista[i].id, entrega, latido: Date.now() })
       try {
         await renderizarUno(slug, plan, lista[i], transcript, meta, entrega)
       } catch (e) {
