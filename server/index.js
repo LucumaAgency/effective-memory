@@ -121,15 +121,18 @@ app.get('/api/proyectos/:slug/graficos/preview', ok(async (req, res) => {
   const meta = metaDe(slug)
   const tAnim = req.query.t == null ? Math.min(0.8, (g.out - g.in) / 2) : Number(req.query.t)
 
-  // Si el clip ya esta renderizado usamos ese como fondo: es lo que se vera de verdad.
-  const clip = (C.leerPlan(slug, entrega)?.clips || []).find(c => c.id === g.clip)
+  // Si el clip ya esta renderizado usamos ese como fondo: es exactamente lo que se vera.
+  // Si no, aplicamos su mismo encuadre vertical sobre el original.
+  const planClips = C.leerPlan(slug, entrega)
+  const clip = (planClips?.clips || []).find(c => c.id === g.clip)
   const renderClip = path.join(C.dirClips(slug), `${entrega}__${g.clip}.mp4`)
   const usarClip = clip && fs.existsSync(renderClip)
 
   const png = await GR.previsualizar(slug, entrega, g, {
     fuente: usarClip ? renderClip : meta.videoPath,
     tFuente: usarClip ? (g.in - clip.in + tAnim) : (g.in + tAnim),
-    tAnim
+    tAnim,
+    filtroBase: usarClip || !clip ? null : C.construirFiltro(planClips, clip)
   })
   res.set('Cache-Control', 'no-store').sendFile(png)
 }))

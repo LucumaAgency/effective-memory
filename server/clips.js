@@ -52,7 +52,7 @@ export function leerPlan (slug, entrega) {
  *  - "apilado": corta a cada persona de la pantalla partida y los apila (2 cabezas parlantes).
  *  - "recorte": una sola persona a pantalla completa.
  */
-function construirFiltro (plan, clip) {
+export function construirFiltro (plan, clip) {
   const { ancho = 1080, alto = 1920 } = plan.formato || {}
   const c = plan.fuente?.contenido || { y: 0, alto: null }
   const personas = plan.fuente?.personas || []

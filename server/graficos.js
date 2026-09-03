@@ -123,7 +123,7 @@ export async function generar (slug, entrega, g, { forzar = false } = {}) {
  * Vista previa barata: el grafico sobre un frame fijo del video, en PNG.
  * Iterar sobre una imagen de 2 segundos en vez de sobre un render completo.
  */
-export async function previsualizar (slug, entrega, g, { fuente, tFuente, tAnim }) {
+export async function previsualizar (slug, entrega, g, { fuente, tFuente, tAnim, filtroBase = null }) {
   const dir = path.join(dirGraficos(slug), entrega, `_prev_${g.id}`)
   const html = htmlDe(slug, entrega, g)
   if (!fs.existsSync(html)) throw new Error(`falta el HTML del gráfico: ${g.archivo}`)
@@ -137,8 +137,13 @@ export async function previsualizar (slug, entrega, g, { fuente, tFuente, tAnim 
 
   const destino = path.join(dirGraficos(slug), entrega, `_prev_${g.id}.png`)
   fs.mkdirSync(path.dirname(destino), { recursive: true })
-  const filtro = `[0:v]scale=${g.ancho}:${g.alto}:force_original_aspect_ratio=increase,` +
-    `crop=${g.ancho}:${g.alto}[base];[base][1:v]overlay=${g.x || 0}:${g.y || 0}`
+  // Si el clip aun no esta renderizado, montamos el mismo encuadre vertical que
+  // tendra el clip. Recortar el original al centro daria una vista previa que no
+  // se parece al resultado.
+  const filtro = filtroBase
+    ? `${filtroBase};[v][1:v]overlay=${g.x || 0}:${g.y || 0}`
+    : `[0:v]scale=${g.ancho}:${g.alto}:force_original_aspect_ratio=increase,` +
+      `crop=${g.ancho}:${g.alto}[base];[base][1:v]overlay=${g.x || 0}:${g.y || 0}`
   await correrFfmpeg([
     '-hide_banner', '-loglevel', 'error', '-y',
     '-ss', String(Math.max(0, tFuente)), '-i', fuente,
