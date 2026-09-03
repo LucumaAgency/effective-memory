@@ -31,7 +31,8 @@ export const cfg = {
   frameCada: num('FRAME_CADA', 10),
   frameAncho: num('FRAME_ANCHO', 640),
   silencioDb: num('SILENCIO_DB', -32),
-  silencioMin: num('SILENCIO_MIN', 0.35)
+  silencioMin: num('SILENCIO_MIN', 0.35),
+  raizApp: RAIZ
 }
 
 export const dirProyectos = () => path.join(cfg.dataRepo, 'proyectos')

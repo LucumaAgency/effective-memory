@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>referencias · video-review</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/favicon.ico">
+<link rel="stylesheet" href="/app.css">
+<header>
+  <a href="/">←</a>
+  <h1>Referencias de estilo</h1>
+  <span class="sep"></span>
+  <button class="primario" id="btnRevision">Pedir revisión</button>
+</header>
+<div class="envoltorio">
+  <div class="panel" style="margin-bottom:22px">
+    <h2>Añadir referencia</h2>
+    <div class="fila">
+      <input id="titulo" placeholder="Título (opcional)" style="max-width:260px">
+      <input id="ruta" placeholder="Ruta local del video   ej: D:\refs\tiktok-01.mp4">
+      <button class="primario" id="btnCrear" style="white-space:nowrap">Analizar</button>
+    </div>
+    <p class="meta" style="margin:9px 0 0">Videos cortos, de unos 30 segundos. Se mide el ritmo de corte,
+      la sonoridad y el color, y se extraen las imágenes que Claude necesita mirar: hojas de contacto,
+      frames en cada cambio de plano y recortes sin escalar de la zona del subtítulo.</p>
+  </div>
+  <div id="lista"></div>
+</div>
+<script type="module" src="/js/referencias.js"></script>

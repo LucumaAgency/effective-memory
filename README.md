@@ -81,6 +81,16 @@ en `entregas/vN/graficos/`. La app lo captura fotograma a fotograma con Chrome (
 guarda como WebM con alfa y lo compone sobre el clip. El botón **vista previa** muestra el
 gráfico sobre un frame real en un par de segundos, con una barra para recorrer la animación.
 
+## Referencias de estilo
+
+`/referencias.html` (enlace en la portada). Se le da la ruta de un video corto de otra persona
+y la app mide lo objetivo (ritmo de corte, sonoridad, color, palabras por minuto) y extrae las
+imágenes que Claude necesita mirar: hojas de contacto, fotogramas en cada cambio de plano y
+recortes **sin escalar** de la zona del subtítulo, que es donde se ve la tipografía.
+
+Claude escribe después un `estilo.json` con lo observado y unos valores propuestos, que se
+copian a mano donde convenzan.
+
 ## Estado
 
 - **Fase 1 · circuito completo** — listo: ingest, dashboard, comentarios, push/pull.

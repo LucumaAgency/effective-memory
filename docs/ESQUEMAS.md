@@ -195,3 +195,45 @@ gráfico sobre un frame del clip, en un par de segundos. Es para iterar sin rend
 
 No se instala ninguno: se busca Chrome y, si no está, **Edge**, que viene en todo Windows.
 Se puede forzar con `NAVEGADOR=` en el `.env`.
+
+## referencias/<slug>/  — referencias de estilo
+
+Videos cortos de otra persona cuyo estilo de edición se quiere replicar. Viven aparte de los
+proyectos, porque describen un *cómo*, no un contenido.
+
+El ingest es distinto al de un proyecto. Produce dos cosas:
+
+**`medidas.json` — lo que se mide solo**
+
+```json
+{ "formato": { "ancho": 1080, "alto": 1920, "fps": 30, "vertical": true },
+  "ritmo":   { "cortes": 14, "planoMedio": 2.1, "instantes": [1.9, 4.0, ...] },
+  "habla":   { "palabrasPorMinuto": 186 },
+  "audio":   { "lufs": -14.2, "rango": 4.1 },
+  "color":   { "saturacionMedia": 132.5, "brilloMedio": 118.0 } }
+```
+
+**Las imágenes — lo que Claude tiene que mirar**
+
+| Carpeta | Qué es | Para qué |
+|---|---|---|
+| `hojas/` | rejillas de 6×5 a 2 fotogramas por segundo | ritmo, encuadre, flujo general |
+| `frames/` | fotograma entero en cada cambio de plano | gráficos, composición |
+| `subtitulos/` | mitad inferior **sin escalar** | tipografía, contorno o caja, posición |
+
+Los recortes van a resolución original a propósito: en miniatura no se distingue una grotesca
+con contorno de una con caja, y eso es justo lo que hay que replicar.
+
+**`estilo.json` — la conclusión**, la escribe Claude tras mirar las imágenes:
+
+```json
+{ "medido": { ... },
+  "observado": { "subtitulos": "...", "graficos": "...", "encuadre": "..." },
+  "aplicar":  { "subtitulos": { "maxLinea": 18, "tamano": 72 }, "clips": { "duracionObjetivo": 35 } } }
+```
+
+`aplicar` son los valores propuestos para el proyecto. **No se aplican solos**: se copian a mano
+al `clips.json` o al estilo de subtítulos cuando convencen.
+
+> Se replica el estilo, no los recursos. Los logos, plantillas o música de la referencia no se
+> reutilizan.

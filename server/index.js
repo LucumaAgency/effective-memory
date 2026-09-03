@@ -10,6 +10,7 @@ import * as C from './clips.js'
 import * as X from './cortes.js'
 import * as GR from './graficos.js'
 import { buscarNavegador } from './navegador.js'
+import * as REF from './referencias.js'
 import { leerJson } from './util.js'
 
 const app = express()
@@ -108,6 +109,40 @@ app.post('/api/proyectos/:slug/render', ok(async (req, res) => {
 app.get('/api/proyectos/:slug/render/estado', ok(async (req, res) => {
   res.json({ ...R.estadoRender(req.params.slug), renders: R.listarRenders(req.params.slug) })
 }))
+// --- referencias de estilo ---
+app.get('/api/referencias', ok(async (_req, res) => res.json(REF.listar())))
+
+app.post('/api/referencias', ok(async (req, res) => {
+  const slug = REF.crear(req.body)
+  REF.lanzarIngest(slug)
+  res.json({ slug })
+}))
+
+app.get('/api/referencias/:slug', ok(async (req, res) => {
+  const dir = REF.dirReferencia(req.params.slug)
+  if (!fs.existsSync(dir)) return res.status(404).json({ error: 'referencia no encontrada' })
+  res.json({
+    slug: req.params.slug,
+    meta: leerJson(path.join(dir, 'meta.json'), null),
+    medidas: leerJson(path.join(dir, 'medidas.json'), null),
+    transcript: leerJson(path.join(dir, 'transcript.json'), null),
+    estilo: leerJson(path.join(dir, 'estilo.json'), null),
+    estado: REF.estadoRef(req.params.slug)
+  })
+}))
+
+app.post('/api/referencias/:slug/ingest', ok(async (req, res) => res.json(REF.lanzarIngest(req.params.slug))))
+app.delete('/api/referencias/:slug', ok(async (req, res) => res.json({ borrado: REF.borrar(req.params.slug) })))
+
+// Las imagenes que yo miro: hojas de contacto, frames sueltos y recortes de subtitulo.
+app.get('/api/referencias/:slug/img/:carpeta/:archivo', ok(async (req, res) => {
+  const { carpeta, archivo } = req.params
+  if (!['hojas', 'frames', 'subtitulos'].includes(carpeta)) return res.status(400).end()
+  const f = path.join(REF.dirReferencia(req.params.slug), carpeta, path.basename(archivo))
+  if (!fs.existsSync(f)) return res.status(404).end()
+  res.sendFile(f)
+}))
+
 // --- graficos ---
 // Vista previa barata: el grafico sobre un frame fijo, en PNG. Iterar sobre una
 // imagen de dos segundos en vez de sobre un render completo.
