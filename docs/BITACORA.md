@@ -213,6 +213,50 @@ estado (`sin renderizar` / `renderizando` / tamaño en MB / `falló`), así que 
 adivinar si algo pasó. El *por qué* de cada corte quedó plegado tras un enlace, que estorbaba
 más de lo que ayudaba una vez leído.
 
+### Cortar silencios (fase 2)
+`816c7be`
+
+`cortes.json` lista lo que **se conserva**, no lo que se quita, y cada tramo lleva su razón.
+Aquí se usó por fin la regla de coordenadas del original: al aplicar el corte se construye una
+tabla de desplazamientos que traduce cualquier tiempo del original al del resultado, y con ella
+se reubican los subtítulos. Los cues que caen en un tramo eliminado se descartan; los que
+quedan partidos se recortan.
+
+El grafo de filtros va a un archivo (`-filter_complex_script`) porque con decenas de tramos la
+línea de comandos de Windows se queda corta.
+
+**El hallazgo fue negativo y vale la pena guardarlo:** el video de Fernando casi no tiene aire.
+95 silencios suman 44,9 s de 27 minutos, mediana 0,40 s, y solo uno pasa del segundo. El plan
+quita 15,8 s, de los cuales 6,5 son la cola muda del final. La función es correcta; este video
+no la necesitaba. Donde rinde es en talking heads grabados en solitario.
+
+De ahí salió poder **recalcular los silencios con otro umbral desde la UI**, sin repetir la
+transcripción: el umbral por defecto (-32 dB) es conservador si la sala tiene ruido de fondo.
+
+### Motion graphics (fase 4)
+`e0b0a91`
+
+Se decidió **no hacer plantillas genéricas todavía**. La identidad depende del proyecto, así
+que cada gráfico se escribe a medida como HTML animado que vive junto a su entrega, y se pide
+comentando en el clip con tipo `gráfico`. Cuando un patrón se repita lo bastante, ese sí pasará
+a ser plantilla del repo. Empezar por plantillas habría sido adivinar.
+
+El detalle que hace fiable el pipeline: **no se graba en tiempo real**. Se fija
+`animation.currentTime` a cada instante exacto y se captura. El resultado es idéntico en
+cualquier máquina y reproducible entre iteraciones, que es lo que importa cuando se itera diez
+veces sobre el mismo gráfico. La consecuencia práctica es la vista previa: un PNG del gráfico
+sobre un frame real en dos segundos, con una barra para recorrer la animación.
+
+No se instala navegador: se usa Chrome o, en su defecto, Edge, que viene en todo Windows.
+
+### Referencias de estilo
+`06f60cc` · detalle en [ESTILO.md](ESTILO.md)
+
+Mismo problema del principio, otra vez: un video de referencia no sirve como video. Se parte en
+lo que se mide solo (ritmo de corte, sonoridad, color, palabras por minuto) y lo que hay que
+mirar (hojas de contacto, fotogramas en los cortes, y recortes de la zona del subtítulo **sin
+escalar**, porque en miniatura no se distingue un contorno de una caja).
+
 ---
 
 ## 5. Lo que se rompió, y por qué
@@ -227,6 +271,9 @@ Vale la pena guardarlo: casi todo fue entorno de Windows, no lógica.
 | `ffprobe ... Permission denied` | Se pegó la ruta de una **carpeta**, no del archivo. `existsSync` devuelve `true` para directorios y la validación la dejó pasar |
 | El server se caía con `ERR_HTTP_HEADERS_SENT` | El manejador de errores respondía cuando las cabeceras ya habían salido |
 | `Library cublas64_12.dll is not found` | En Windows las DLL de `nvidia-cublas-cu12` quedan en `site-packages` y **no** en el PATH, así que ctranslate2 no las encuentra aunque estén instaladas |
+| La vista previa del gráfico salía horizontal | Sin el clip renderizado, caía a recortar el original al centro; en una pantalla partida el centro es la unión entre las dos personas |
+| Los gráficos no aparecían en el clip | `graficos.json` estaba en una entrega y `clips.json` en otra. Se referencian por id de clip, así que tienen que convivir |
+| Una página se recargaba sola cada 2 s | Un proyecto sin ingestar entraba en el bucle de "procesando" para siempre y borraba lo que tuvieras abierto |
 | Renderizar un clip nuevo "no hacía nada" | Se renderizaba, pero la UI buscaba el archivo por su nombre viejo (sin el prefijo de entrega) y nunca lo mostraba. Pasa si el server no se reinicia tras actualizar |
 | `Cannot fast-forward to multiple branches` | `git pull` decide qué fusionar leyendo `branch.<rama>.merge`. Si esa config lista más de una referencia, **ningún argumento de línea de comandos lo salva**: hubo que pasar a `fetch` + `merge FETCH_HEAD` |
 
@@ -244,13 +291,13 @@ preview de subtítulos quemados, clips verticales con comentarios propios.
 
 **Pendiente:**
 
-- **Cortar silencios del video completo** (`cortes.json` + `conservar`). Es la razón por la
-  que existe la regla de coordenadas del original, pero todavía no se ha usado. En los 27
-  minutos del primer video hay 95 tramos de silencio detectados.
-- **Motion graphics.** El diseño acordado es HTML/CSS animado → Puppeteer → PNG con alpha →
-  composición con ffmpeg. Se eligió sobre overlays de ffmpeg puro porque la ventaja real es
-  que Claude puede *diseñar* los gráficos, no solo posicionarlos.
-- **Avisar de comentarios sin subir.** Ya pasó una vez: se comentó y no se pulsó "Pedir
+- **Cerrar el bucle sobre la propia salida**: hoja de contactos del clip renderizado en el
+  mismo formato que la de la referencia, y comparación numérica entre ambas. Es la mejora que
+  más aceleraría el aprendizaje de estilo. Detalle en [ESTILO.md](ESTILO.md).
+- **Reglas de estilo acumulativas**, al modo de `correcciones.json`, para que una corrección
+  dicha una vez no se pierda al resolver el comentario.
+- **Copy de publicación por clip**: titular, descripción y hashtags junto al vertical.
+- **Avisar de comentarios sin subir.** Ya pasó dos veces: se comentó y no se pulsó "Pedir
   revisión", así que el comentario nunca llegó. Es fricción evitable.
 
 **Preguntas abiertas:**

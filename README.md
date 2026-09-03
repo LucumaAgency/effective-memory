@@ -8,6 +8,7 @@ motion graphics. Corre en tu PC, el video nunca se sube a ningún lado.
 > - [`docs/BITACORA.md`](docs/BITACORA.md) — **empieza por aquí**: por qué está hecho así, qué se decidió y qué se rompió
 > - [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — el diseño y los endpoints
 > - [`docs/ESQUEMAS.md`](docs/ESQUEMAS.md) — el formato de cada archivo
+> - [`docs/ESTILO.md`](docs/ESTILO.md) — cómo se aprende un estilo de edición ajeno, y cómo acelerarlo
 
 ## Instalación en Windows
 
