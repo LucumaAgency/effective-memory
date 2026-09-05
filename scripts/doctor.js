@@ -61,6 +61,10 @@ if (cfg.videosDir) {
   console.log('  --   carpeta de videos  ->  VIDEOS_DIR sin definir (solo hace falta si compartes proyectos entre equipos)')
 }
 
+const { revisarDataRepo } = await import('../server/config.js')
+const problema = revisarDataRepo()
+if (problema) linea(false, 'DATA_REPO', problema)
+
 const hayRepo = fs.existsSync(cfg.dataRepo)
 linea(hayRepo, 'repo de datos', cfg.dataRepo)
 if (hayRepo) {

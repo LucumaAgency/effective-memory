@@ -1,3 +1,10 @@
 node_modules/
 .env
 *.log
+
+# Datos de proyectos. Su sitio es el repo privado video-review-proyectos.
+# Si DATA_REPO apunta por error a esta carpeta, se escriben aqui y este repo es
+# PUBLICO: transcripciones y frames acabarian publicados.
+proyectos/
+renders/
+referencias/

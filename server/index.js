@@ -1,7 +1,7 @@
 import express from 'express'
 import fs from 'node:fs'
 import path from 'node:path'
-import { cfg, RAIZ, dirProyecto, dirProyectos } from './config.js'
+import { cfg, RAIZ, dirProyecto, dirProyectos, revisarDataRepo } from './config.js'
 import * as P from './proyectos.js'
 import { lanzarIngest, estadoIngest, frameEn, detectarSilencios } from './ingest.js'
 import * as G from './git.js'
@@ -318,6 +318,12 @@ app.post('/api/traer', ok(async (_req, res) => res.json(await G.traer())))
 // Red de seguridad: preferimos registrar y seguir vivos antes que morir a media edicion.
 process.on('uncaughtException', e => console.error('[no capturado]', e))
 process.on('unhandledRejection', e => console.error('[promesa no capturada]', e))
+
+const problema = revisarDataRepo()
+if (problema) {
+  console.error(`\n  ERROR: ${problema}\n`)
+  process.exit(1)
+}
 
 app.listen(cfg.puerto, () => {
   console.log(`\n  video-review  ->  http://localhost:${cfg.puerto}`)

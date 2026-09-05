@@ -38,5 +38,22 @@ export const cfg = {
   raizApp: RAIZ
 }
 
+/**
+ * DATA_REPO no puede ser la carpeta de la app. Apuntarlo ahi hace que los
+ * proyectos se escriban dentro del repo del codigo, que es publico, y que
+ * "Pedir revision" publique transcripciones sin querer. Ya paso una vez.
+ */
+export function revisarDataRepo () {
+  const mismo = path.resolve(cfg.dataRepo) === path.resolve(RAIZ)
+  const pareceApp = fs.existsSync(path.join(cfg.dataRepo, 'server', 'index.js')) &&
+    fs.existsSync(path.join(cfg.dataRepo, 'package.json'))
+  if (mismo || pareceApp) {
+    return `DATA_REPO apunta a la carpeta de la aplicación (${cfg.dataRepo}). ` +
+      'Debe apuntar al clon de video-review-proyectos, que es privado. ' +
+      'Corrige DATA_REPO en el .env antes de seguir.'
+  }
+  return null
+}
+
 export const dirProyectos = () => path.join(cfg.dataRepo, 'proyectos')
 export const dirProyecto = (slug) => path.join(dirProyectos(), slug)
