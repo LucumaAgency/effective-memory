@@ -112,13 +112,20 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
 
   // .ass propio del clip, con los tiempos rebasados a su inicio
   const clave = claveDe(entrega, clip.id)
+
+  // "subtitulos": false en el plan (o en un clip suelto) los desactiva.
+  const conSubtitulos = (clip.subtitulos ?? plan.subtitulos) !== false
   const ass = path.join(dir, `${clave}.ass`)
-  const { texto } = generarAss(transcript, {
-    desde: clip.in, hasta: clip.out, ancho, alto, origen: clip.in,
-    estilo: { ...(plan.estilo || {}), ...(clip.estilo || {}) },
-    correcciones: correccionesDe(slug, plan)
-  })
-  fs.writeFileSync(ass, texto, 'utf8')
+  if (conSubtitulos) {
+    const { texto } = generarAss(transcript, {
+      desde: clip.in, hasta: clip.out, ancho, alto, origen: clip.in,
+      estilo: { ...(plan.estilo || {}), ...(clip.estilo || {}) },
+      correcciones: correccionesDe(slug, plan)
+    })
+    fs.writeFileSync(ass, texto, 'utf8')
+  } else if (fs.existsSync(ass)) {
+    fs.unlinkSync(ass)
+  }
 
   const salida = path.join(dir, `${clave}.mp4`)
 
@@ -126,7 +133,9 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
   // que va en coordenadas del original igual que todo lo demas.
   const graficos = graficosDe(slug, entrega, clip)
   const entradas = []
-  let cadena = `${construirFiltro(plan, clip)};[v]ass=${clave}.ass[v0]`
+  let cadena = conSubtitulos
+    ? `${construirFiltro(plan, clip)};[v]ass=${clave}.ass[v0]`
+    : `${construirFiltro(plan, clip).replace(/\[v\]$/, '[v0]')}`
   for (let i = 0; i < graficos.length; i++) {
     const g = graficos[i]
     const webm = await generarGrafico(slug, entrega, g)
