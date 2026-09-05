@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { cfg, dirProyecto, RAIZ } from './config.js'
 import { correr, escribirJson, leerJson } from './util.js'
+import { leerMeta } from './proyectos.js'
 
 // Estado de los ingests en curso, en memoria. El resumen se espeja en estado.json.
 const trabajos = new Map()
@@ -143,7 +144,7 @@ async function transcribir (videoPath, slug) {
 
 export async function ingestar (slug) {
   const dir = dirProyecto(slug)
-  const meta = leerJson(path.join(dir, 'meta.json'))
+  const meta = leerMeta(slug)
   if (!meta) throw new Error(`Proyecto ${slug} sin meta.json`)
   if (!fs.existsSync(meta.videoPath)) throw new Error(`No existe el video: ${meta.videoPath}`)
 

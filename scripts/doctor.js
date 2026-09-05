@@ -55,6 +55,12 @@ const { buscarNavegador } = await import('../server/navegador.js')
 const nav = buscarNavegador()
 linea(!!nav, 'navegador (motion graphics)', nav || 'no encuentro Chrome ni Edge; pon la ruta en NAVEGADOR= del .env')
 
+if (cfg.videosDir) {
+  linea(fs.existsSync(cfg.videosDir), 'carpeta de videos', cfg.videosDir)
+} else {
+  console.log('  --   carpeta de videos  ->  VIDEOS_DIR sin definir (solo hace falta si compartes proyectos entre equipos)')
+}
+
 const hayRepo = fs.existsSync(cfg.dataRepo)
 linea(hayRepo, 'repo de datos', cfg.dataRepo)
 if (hayRepo) {

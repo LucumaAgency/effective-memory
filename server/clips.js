@@ -3,6 +3,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { cfg, dirProyecto } from './config.js'
 import { leerJson } from './util.js'
+import { leerMeta } from './proyectos.js'
 import { generarAss } from './subtitulos.js'
 import { dirRenders } from './render.js'
 import { leerPlanGraficos, generar as generarGrafico } from './graficos.js'
@@ -192,7 +193,7 @@ export function renderizarClips (slug, { entrega, ids = null }) {
 
   const plan = leerPlan(slug, entrega)
   if (!plan) throw new Error(`la entrega ${entrega} no tiene clips.json`)
-  const meta = leerJson(path.join(dirProyecto(slug), 'meta.json'))
+  const meta = leerMeta(slug)
   const transcript = leerJson(path.join(dirProyecto(slug), 'transcript.json'), { segmentos: [] })
   if (!meta || !fs.existsSync(meta.videoPath)) throw new Error('no encuentro el video original')
 

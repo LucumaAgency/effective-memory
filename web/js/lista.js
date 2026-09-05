@@ -28,6 +28,7 @@ function tarjeta (p) {
         <div class="meta" style="margin-top:4px">${FASES[p.fase] || p.fase} ${Math.round(p.progreso)}%${
           p.desde ? ` · lleva ${Math.round((Date.now() - p.desde) / 60000)} min` : ''}</div>` : ''}
       ${p.error ? `<div class="meta" style="color:var(--corte);margin-top:5px;word-break:break-word">${escapar(p.error)}</div>` : ''}
+      ${p.faltaVideo ? `<div class="meta" style="color:var(--subtitulo);margin-top:5px">El archivo de video no está en esta máquina. Copia el video y define <code>VIDEOS_DIR</code> en el .env.</div>` : ''}
     </div>
     <span class="chip" style="${p.fase === 'error' ? 'color:var(--corte)' : p.fase === 'listo' ? 'color:var(--ok)' : ''}">${FASES[p.fase] || p.fase}</span>
     <button data-borrar="${p.slug}" title="Borrar el proyecto (el video no se toca)">&#10005;</button>

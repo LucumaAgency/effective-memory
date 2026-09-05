@@ -3,6 +3,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { cfg, dirProyecto } from './config.js'
 import { leerJson, escribirJson } from './util.js'
+import { leerMeta } from './proyectos.js'
 import { generarAss } from './subtitulos.js'
 import { correccionesDe } from './clips.js'
 import { dirRenders } from './render.js'
@@ -75,7 +76,7 @@ export function aplicarCortes (slug, { entrega }) {
 
   const plan = leerPlanCortes(slug, entrega)
   if (!plan) throw new Error(`la entrega ${entrega} no tiene cortes.json`)
-  const meta = leerJson(path.join(dirProyecto(slug), 'meta.json'))
+  const meta = leerMeta(slug)
   if (!meta || !fs.existsSync(meta.videoPath)) throw new Error('no encuentro el video original')
 
   const conservar = (plan.conservar || []).filter(s => s.out > s.in)

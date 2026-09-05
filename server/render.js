@@ -3,6 +3,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { cfg, dirProyecto } from './config.js'
 import { leerJson } from './util.js'
+import { leerMeta } from './proyectos.js'
 
 // Los renders son binarios: viven fuera del arbol versionado del proyecto.
 export const dirRenders = (slug) => path.join(cfg.dataRepo, 'renders', slug)
@@ -28,7 +29,7 @@ export function renderizar (slug, { entrega, desde = 0, hasta = null }) {
   const enCurso = trabajos.get(slug)
   if (enCurso && enCurso.fase === 'renderizando') return enCurso
 
-  const meta = leerJson(path.join(dirProyecto(slug), 'meta.json'))
+  const meta = leerMeta(slug)
   if (!meta) throw new Error('proyecto sin meta.json')
   if (!fs.existsSync(meta.videoPath)) throw new Error(`no existe el video: ${meta.videoPath}`)
 

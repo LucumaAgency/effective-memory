@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { dirProyectos, dirProyecto } from './config.js'
+import { cfg, dirProyectos, dirProyecto } from './config.js'
 import { leerJson, escribirJson, slugify } from './util.js'
 
 const ARCHIVOS = {
@@ -11,13 +11,34 @@ const ARCHIVOS = {
   comentarios: 'comentarios.json'
 }
 
+/**
+ * meta.json con la ruta del video ya resuelta para ESTA maquina.
+ *
+ * meta.json va versionado, asi que su videoPath es el de la maquina donde se
+ * creo el proyecto. Si ahi no esta, se busca el mismo nombre de archivo dentro
+ * de VIDEOS_DIR. Asi el mismo proyecto se abre en dos equipos sin editar nada
+ * ni provocar conflictos en git.
+ */
+export function leerMeta (slug) {
+  const meta = leerJson(path.join(dirProyecto(slug), 'meta.json'), null)
+  if (!meta) return null
+  if (meta.videoPath && fs.existsSync(meta.videoPath)) return meta
+
+  const nombre = path.basename(String(meta.videoPath || '').replace(/\\/g, '/'))
+  if (cfg.videosDir && nombre) {
+    const local = path.join(cfg.videosDir, nombre)
+    if (fs.existsSync(local)) return { ...meta, videoPath: local, rutaResuelta: true }
+  }
+  return meta
+}
+
 export function listar () {
   const dir = dirProyectos()
   if (!fs.existsSync(dir)) return []
   return fs.readdirSync(dir, { withFileTypes: true })
     .filter(d => d.isDirectory())
     .map(d => {
-      const meta = leerJson(path.join(dir, d.name, 'meta.json'), {})
+      const meta = leerMeta(d.name) || {}
       const estado = leerJson(path.join(dir, d.name, 'estado.json'), { fase: 'sin-ingest' })
       const coms = leerJson(path.join(dir, d.name, 'comentarios.json'), { items: [] })
       return {
@@ -30,6 +51,7 @@ export function listar () {
         desde: estado.desde || null,
         progreso: estado.progreso || 0,
         comentarios: coms.items.length,
+        faltaVideo: !meta.videoPath || !fs.existsSync(meta.videoPath),
         abiertos: coms.items.filter(c => c.estado !== 'resuelto').length,
         entregas: entregas(d.name)
       }
@@ -98,6 +120,7 @@ export function cargar (slug) {
   for (const [clave, archivo] of Object.entries(ARCHIVOS)) {
     datos[clave] = leerJson(path.join(dir, archivo), null)
   }
+  datos.meta = leerMeta(slug)   // con la ruta del video resuelta para esta maquina
   datos.estado = leerJson(path.join(dir, 'estado.json'), { fase: 'sin-ingest', progreso: 0 })
   datos.entregas = entregas(slug)
   return datos

@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { cfg, dirProyecto } from './config.js'
 import { correr, leerJson, escribirJson } from './util.js'
+import { leerMeta } from './proyectos.js'
 import { dirRenders } from './render.js'
 
 const archivoEntrega = (slug, entrega, nombre) =>
@@ -21,7 +22,7 @@ export function editarClip (slug, entrega, id, cambios) {
   const c = (plan.clips || []).find(x => x.id === id)
   if (!c) throw new Error(`no existe el clip ${id}`)
 
-  const meta = leerJson(path.join(dirProyecto(slug), 'meta.json'), {})
+  const meta = leerMeta(slug)
   const dur = meta.duracion || 1e9
   if (cambios.in != null) c.in = ajustar(cambios.in, 0, dur - 0.3)
   if (cambios.out != null) c.out = ajustar(cambios.out, 0.3, dur)
@@ -40,7 +41,7 @@ export function editarGrafico (slug, entrega, id, cambios) {
   const g = (plan.graficos || []).find(x => x.id === id)
   if (!g) throw new Error(`no existe el gráfico ${id}`)
 
-  const meta = leerJson(path.join(dirProyecto(slug), 'meta.json'), {})
+  const meta = leerMeta(slug)
   const dur = meta.duracion || 1e9
   if (cambios.in != null) g.in = ajustar(cambios.in, 0, dur - 0.2)
   if (cambios.out != null) g.out = ajustar(cambios.out, 0.2, dur)
@@ -67,7 +68,7 @@ export function htmlGrafico (slug, entrega, id) {
 
 /** Forma de onda del audio, cacheada. Hace legible la timeline de un golpe. */
 export async function formaDeOnda (slug) {
-  const meta = leerJson(path.join(dirProyecto(slug), 'meta.json'), null)
+  const meta = leerMeta(slug)
   if (!meta || !fs.existsSync(meta.videoPath)) throw new Error('no encuentro el video')
   const destino = path.join(dirRenders(slug), 'onda.png')
   if (fs.existsSync(destino) &&

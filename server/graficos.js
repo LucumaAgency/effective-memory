@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import puppeteer from 'puppeteer-core'
 import { cfg, dirProyecto } from './config.js'
 import { leerJson } from './util.js'
+import { leerMeta } from './proyectos.js'
 import { buscarNavegador } from './navegador.js'
 import { dirRenders } from './render.js'
 

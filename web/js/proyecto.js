@@ -18,7 +18,9 @@ async function cargar () {
   if (!video.dataset.fuente) cambiarFuente()
   $('#rTotal').textContent = mmss(duracion)
 
-  if (D.estado.fase === 'error') {
+  if (D.meta && !D.meta.videoPath) {
+    $('#aviso').innerHTML = '<div class="aviso">Este proyecto no tiene ruta de video.</div>'
+  } else if (D.estado.fase === 'error') {
     $('#aviso').innerHTML = `<div class="aviso"><b>El ingest falló.</b><br>${escapar(D.estado.error || '')}
       <div style="margin-top:9px"><button id="btnReintentar">Reintentar ingest</button></div></div>`
     $('#btnReintentar').onclick = async () => {

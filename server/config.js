@@ -32,6 +32,9 @@ export const cfg = {
   frameAncho: num('FRAME_ANCHO', 640),
   silencioDb: num('SILENCIO_DB', -32),
   silencioMin: num('SILENCIO_MIN', 0.35),
+  // Carpeta local donde estan los videos. Sirve para que un proyecto abierto en
+  // dos maquinas distintas no necesite tocar meta.json, que va versionado.
+  videosDir: process.env.VIDEOS_DIR || '',
   raizApp: RAIZ
 }
 

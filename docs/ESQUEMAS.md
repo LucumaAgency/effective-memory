@@ -289,3 +289,21 @@ Los subtítulos se pintan igual, como HTML sobre el video, a partir de
 
 Si el clip ya está renderizado, la previa va sobre él y es idéntica al resultado. Si no, va
 sobre el original y se avisa de que falta el encuadre vertical.
+
+## Un proyecto en dos máquinas
+
+`meta.json` va versionado y guarda la ruta absoluta del video, que es la del equipo donde se
+creó el proyecto. Para abrirlo en otro sin editar nada (y sin provocar un conflicto en cada
+`pull`), se define en el `.env` de cada máquina:
+
+```
+VIDEOS_DIR=D:\Karina
+```
+
+Si la ruta de `meta.json` no existe aquí, se busca **el mismo nombre de archivo** dentro de
+`VIDEOS_DIR`. Basta con que el video se llame igual en los dos equipos; la carpeta puede
+cambiar.
+
+Si tampoco está ahí, el proyecto se abre igual (transcripción, comentarios y entregas siguen
+siendo legibles) y la portada avisa de que falta el video. Lo único que no funciona es
+reproducir y renderizar.
