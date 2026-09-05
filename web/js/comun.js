@@ -21,6 +21,7 @@ export const FASES = {
   sondeando: 'leyendo video',
   silencios: 'detectando silencios',
   frames: 'extrayendo frames',
+  'descargando-modelo': 'descargando el modelo de Whisper',
   transcribiendo: 'transcribiendo',
   listo: 'listo',
   error: 'error'

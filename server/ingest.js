@@ -107,6 +107,7 @@ function resumirError (mensaje) {
 
 async function transcribir (videoPath, slug) {
   const salida = path.join(dirProyecto(slug), 'transcript.json')
+  let descargando = false
   try {
   await correr(cfg.python, [
     path.join(RAIZ, 'scripts', 'transcribir.py'),
@@ -115,8 +116,24 @@ async function transcribir (videoPath, slug) {
     '--device', cfg.whisperDevice,
     '--idioma', cfg.whisperLang
   ], { onStderr: t => {
+    // La salida de whisper no se veia en ningun sitio: sin esto es imposible
+    // saber si esta bajando el modelo, trabajando, o atascado.
+    for (const linea of t.split(/\r?\n/)) {
+      if (/^\[whisper\]/.test(linea)) console.log(`[${slug}] ${linea.trim()}`)
+    }
+    if (!descargando && /Downloading|%\|/.test(t)) {
+      descargando = true
+      console.log(`[${slug}] [whisper] descargando el modelo (solo la primera vez)`)
+      marcar(slug, { fase: 'descargando-modelo', progreso: 40, desde: Date.now() })
+    }
     const m = t.match(/PROGRESO\s+([\d.]+)/)
-    if (m) marcar(slug, { fase: 'transcribiendo', progreso: 40 + Number(m[1]) * 0.55 })
+    if (m) {
+      if (descargando) {
+        descargando = false
+        console.log(`[${slug}] [whisper] modelo listo, transcribiendo`)
+      }
+      marcar(slug, { fase: 'transcribiendo', progreso: 40 + Number(m[1]) * 0.55 })
+    }
   } })
   } catch (e) {
     throw new Error(`Transcripcion: ${resumirError(e.message)}`)
@@ -142,7 +159,8 @@ export async function ingestar (slug) {
     escribirJson(path.join(dir, 'frames.json'), { cada: cfg.frameCada, muestras: await extraerFrames(meta.videoPath, slug, info.duracion) })
 
     if (info.tieneAudio) {
-      marcar(slug, { fase: 'transcribiendo', progreso: 40 })
+      marcar(slug, { fase: 'transcribiendo', progreso: 40, desde: Date.now() })
+      console.log(`[${slug}] transcribiendo · modelo ${cfg.whisperModelo} · ${Math.round(info.duracion / 60)} min de audio`)
       await transcribir(meta.videoPath, slug)
     } else {
       escribirJson(path.join(dir, 'transcript.json'), { idioma: null, segmentos: [], nota: 'el video no tiene pista de audio' })

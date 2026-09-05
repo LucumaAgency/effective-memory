@@ -32,7 +32,14 @@ async function cargar () {
       await api(`/api/proyectos/${slug}/ingest`, { method: 'POST' }); setTimeout(cargar, 500)
     }
   } else if (D.estado.fase !== 'listo') {
-    $('#aviso').innerHTML = `<div class="aviso">Procesando: ${FASES[D.estado.fase] || D.estado.fase} ${Math.round(D.estado.progreso)}%. Puedes ver el video y comentar mientras tanto.</div>`
+    const mins = D.estado.desde ? Math.round((Date.now() - D.estado.desde) / 60000) : null
+    const llevando = mins != null ? ` · lleva ${mins} min` : ''
+    const nota = D.estado.fase === 'descargando-modelo'
+      ? 'La primera vez baja el modelo (unos cientos de MB). No hay barra porque no reporta progreso.'
+      : D.estado.fase === 'transcribiendo'
+        ? 'Sin GPU esto puede tardar bastante en un video largo.'
+        : 'Puedes ver el video y comentar mientras tanto.'
+    $('#aviso').innerHTML = `<div class="aviso">Procesando: ${FASES[D.estado.fase] || D.estado.fase} ${Math.round(D.estado.progreso)}%${llevando}.<br>${nota}</div>`
     // Solo se repite mientras haya algo en curso: antes un proyecto sin ingestar
     // recargaba la pagina cada 2s para siempre y borraba lo que tuvieras abierto.
     setTimeout(cargar, 2000)
