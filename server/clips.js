@@ -6,7 +6,7 @@ import { leerJson } from './util.js'
 import { leerMeta } from './proyectos.js'
 import { generarAss } from './subtitulos.js'
 import { dirRenders } from './render.js'
-import { leerPlanGraficos, generar as generarGrafico } from './graficos.js'
+import { leerPlanGraficos, generar as generarGrafico, faltanRecursos } from './graficos.js'
 
 export const dirClips = (slug) => path.join(dirRenders(slug), 'clips')
 
@@ -148,19 +148,29 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega, avisa
 
   // Los graficos van DEBAJO de los subtitulos: un b-roll a pantalla completa no
   // debe tapar el texto.
-  for (let i = 0; i < graficos.length; i++) {
-    const g = graficos[i]
+  // n cuenta las entradas de ffmpeg, que no coinciden con el indice del bucle
+  // en cuanto se omite un grafico.
+  let n = 0
+  for (const g of graficos) {
+    // Un grafico sin su imagen se omite: generarlo daria un WebM totalmente
+    // transparente, y eso se compone como un rectangulo negro sobre el video.
+    const faltan = faltanRecursos(slug, entrega, g)
+    if (faltan.length) {
+      console.log(`[${slug}] gráfico ${g.id} omitido, falta ${faltan.map(f => path.basename(f)).join(', ')}`)
+      continue
+    }
     const webm = await generarGrafico(slug, entrega, g,
       { alAvanzar: (pc) => avisar(`gráfico ${g.id}`, pc) })
     entradas.push('-i', webm)
+    n++
     const desde = +(g.in - clip.in).toFixed(3)
     const hasta = +(g.out - clip.in).toFixed(3)
     // setpts retrasa el grafico hasta su momento; sin esto empezaria en el
     // segundo 0 del clip y ya habria terminado cuando toca mostrarlo.
-    cadena += `;[${i + 1}:v]setpts=PTS+${desde}/TB[g${i}]`
-    cadena += `;[${ultima}][g${i}]overlay=${g.x || 0}:${g.y || 0}:` +
-      `enable='between(t,${desde},${hasta})':eof_action=pass[vg${i}]`
-    ultima = `vg${i}`
+    cadena += `;[${n}:v]setpts=PTS+${desde}/TB[g${n}]`
+    cadena += `;[${ultima}][g${n}]overlay=${g.x || 0}:${g.y || 0}:` +
+      `enable='between(t,${desde},${hasta})':eof_action=pass[vg${n}]`
+    ultima = `vg${n}`
   }
 
   cadena += conSubtitulos ? `;[${ultima}]ass=${clave}.ass[vout]` : `;[${ultima}]copy[vout]`

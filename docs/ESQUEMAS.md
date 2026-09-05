@@ -334,7 +334,16 @@ lado a lado, con fundido de entrada y salida. Sus parámetros van en `datos`:
 | `entrada` | segundos de fundido |
 | `credito` | texto pequeño abajo a la izquierda |
 
-Si el archivo de imagen no existe, el plano se oculta solo y el clip se renderiza sin él.
+Si el archivo de imagen no existe, **el gráfico no se genera**: se omite y el clip se renderiza
+sin él, con un aviso en la terminal. No basta con ocultarlo dentro del HTML, porque un WebM
+enteramente transparente se compone como un rectángulo negro sobre el video.
+
+### Cuándo se regenera
+
+El WebM se cachea junto a un archivo `.huella` que resume el HTML, los `datos` del gráfico, su
+tamaño, su duración y la fecha y el peso de **cada archivo que referencia**. Si algo de eso
+cambia, se regenera. Mirar solo la fecha del HTML no bastaba: corregir el nombre de una imagen
+en `graficos.json` no lo tocaba, y se reutilizaba el WebM viejo.
 
 ### Orden de capas
 

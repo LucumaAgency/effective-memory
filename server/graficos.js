@@ -101,6 +101,43 @@ export function htmlDe (slug, entrega, g) {
   return path.join(dirProyecto(slug), 'entregas', entrega, 'graficos', g.archivo)
 }
 
+/**
+ * Archivos que el grafico referencia en sus datos (imagenes, videos, fuentes).
+ * Se detectan por la extension: cualquier valor de texto que parezca un archivo.
+ */
+export function recursosDe (slug, entrega, g) {
+  const dir = path.join(dirProyecto(slug), 'entregas', entrega, 'graficos')
+  return Object.values(g.datos || {})
+    .filter(v => typeof v === 'string' && /\.(jpe?g|png|webp|gif|svg|mp4|webm|woff2?|ttf|otf)$/i.test(v))
+    .map(v => path.join(dir, path.basename(v)))
+}
+
+/** Los recursos que faltan. Un grafico al que le falta su imagen no se genera. */
+export function faltanRecursos (slug, entrega, g) {
+  return recursosDe(slug, entrega, g).filter(f => !fs.existsSync(f))
+}
+
+/**
+ * Huella del grafico: si cambia, hay que regenerar.
+ *
+ * Antes solo se miraba la fecha del HTML, asi que corregir el nombre de una
+ * imagen en graficos.json no invalidaba nada y se reutilizaba el WebM viejo.
+ */
+function huella (slug, entrega, g) {
+  const html = htmlDe(slug, entrega, g)
+  const partes = [
+    fs.existsSync(html) ? String(fs.statSync(html).mtimeMs) : 'sin-html',
+    JSON.stringify(g.datos || {}),
+    `${g.ancho}x${g.alto}`,
+    (g.out - g.in).toFixed(3)
+  ]
+  for (const f of recursosDe(slug, entrega, g)) {
+    const st = fs.existsSync(f) ? fs.statSync(f) : null
+    partes.push(`${path.basename(f)}:${st ? st.mtimeMs + ':' + st.size : 'falta'}`)
+  }
+  return partes.join('|')
+}
+
 /** Genera (o reutiliza) el WebM de un grafico. */
 export async function generar (slug, entrega, g, { forzar = false, alAvanzar } = {}) {
   const dir = path.join(dirGraficos(slug), entrega, g.id)
@@ -108,9 +145,11 @@ export async function generar (slug, entrega, g, { forzar = false, alAvanzar } =
   const html = htmlDe(slug, entrega, g)
   if (!fs.existsSync(html)) throw new Error(`falta el HTML del gráfico: ${g.archivo}`)
 
-  if (!forzar && fs.existsSync(destino) &&
-      fs.statSync(destino).mtimeMs > fs.statSync(html).mtimeMs) {
-    return destino     // el HTML no cambio desde la ultima vez
+  const marca = destino + '.huella'
+  const actual = huella(slug, entrega, g)
+  if (!forzar && fs.existsSync(destino) && fs.existsSync(marca) &&
+      fs.readFileSync(marca, 'utf8') === actual) {
+    return destino     // nada cambio desde la ultima vez
   }
   fs.mkdirSync(path.dirname(destino), { recursive: true })
   await capturar(html, {
@@ -119,6 +158,7 @@ export async function generar (slug, entrega, g, { forzar = false, alAvanzar } =
   })
   await empaquetar(dir, destino)
   fs.rmSync(dir, { recursive: true, force: true })
+  fs.writeFileSync(marca, actual, 'utf8')
   return destino
 }
 
