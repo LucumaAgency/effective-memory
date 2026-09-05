@@ -56,10 +56,14 @@ export function leerPlan (slug, entrega) {
 export const par = (v) => Math.max(0, Math.round(Number(v) || 0) & ~1)
 
 export function construirFiltro (plan, clip) {
-  const { ancho = 1080, alto = 1920 } = plan.formato || {}
-  const c = plan.fuente?.contenido || { y: 0, alto: null }
-  const personas = plan.fuente?.personas || []
-  const disposicion = clip.disposicion || plan.formato?.disposicion || 'apilado'
+  // Un clip puede pisar el encuadre del plan: en una entrevista a dos camaras,
+  // los tramos donde solo habla uno piden un encuadre distinto.
+  const formato = { ...(plan.formato || {}), ...(clip.formato || {}) }
+  const fuente = clip.fuente || plan.fuente || {}
+  const { ancho = 1080, alto = 1920 } = formato
+  const c = fuente.contenido || { y: 0, alto: null }
+  const personas = fuente.personas || []
+  const disposicion = clip.disposicion || formato.disposicion || 'apilado'
   const altoFuente = c.alto || 0
 
   // "fondo": la franja util del video, nitida, sobre una copia de si misma
@@ -69,8 +73,8 @@ export function construirFiltro (plan, clip) {
     const quien = clip.persona ?? 0
     const p = personas[quien] || personas[0] || { x: 0, ancho: plan.fuente?.contenido?.ancho || ancho }
     const recorte = `crop=${par(p.ancho)}:${par(altoFuente)}:${par(p.x)}:${par(c.y)}`
-    const altoTira = par(alto * (plan.formato?.altoTira ?? 0.32))
-    const arriba = par(alto * (plan.formato?.tiraY ?? 0.16))
+    const altoTira = par(alto * (formato.altoTira ?? 0.32))
+    const arriba = par(alto * (formato.tiraY ?? 0.16))
     // El recorte se hace una vez y se divide con split: usar [0:v] dos veces
     // funciona en unas versiones de ffmpeg y falla en otras. Ademas asi el
     // recorte no se calcula dos veces.
