@@ -59,6 +59,24 @@ export function construirFiltro (plan, clip) {
   const disposicion = clip.disposicion || plan.formato?.disposicion || 'apilado'
   const altoFuente = c.alto || 0
 
+  // "fondo": la franja util del video, nitida, sobre una copia de si misma
+  // ampliada y difuminada. Para fuentes muy apaisadas (una videollamada con
+  // barras negras) donde recortar a 9:16 obligaria a ampliar 5 veces.
+  if (disposicion === 'fondo') {
+    const quien = clip.persona ?? 0
+    const p = personas[quien] || personas[0] || { x: 0, ancho: plan.fuente?.contenido?.ancho || ancho }
+    const recorte = `crop=${p.ancho}:${altoFuente}:${p.x}:${c.y}`
+    const altoTira = Math.round(alto * (plan.formato?.altoTira ?? 0.32))
+    const arriba = Math.round(alto * (plan.formato?.tiraY ?? 0.16))
+    return [
+      `[0:v]${recorte},scale=${ancho}:${alto}:force_original_aspect_ratio=increase,` +
+        `crop=${ancho}:${alto},boxblur=24:2,eq=brightness=-0.14:saturation=0.8[bg]`,
+      `[0:v]${recorte},scale=${ancho}:${altoTira}:force_original_aspect_ratio=increase,` +
+        `crop=${ancho}:${altoTira}[fg]`,
+      `[bg][fg]overlay=0:${arriba}[v]`
+    ].join(';')
+  }
+
   if (disposicion === 'recorte') {
     const quien = clip.persona ?? 0
     const p = personas[quien] || personas[0]
