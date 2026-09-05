@@ -55,7 +55,13 @@ export function leerPlan (slug, entrega) {
  */
 export const par = (v) => Math.max(0, Math.round(Number(v) || 0) & ~1)
 
-export function construirFiltro (plan, clip) {
+/**
+ * @param ramas etiquetas de flujo ya derivadas de [0:v]. Si no se pasan, el
+ *   filtro las crea el mismo. Usar [0:v] mas de una vez en el mismo grafo
+ *   funciona en unas versiones de ffmpeg y revienta en otras, asi que la
+ *   division se hace UNA sola vez, arriba.
+ */
+export function construirFiltro (plan, clip, ramas = null) {
   // Un clip puede pisar el encuadre del plan: en una entrevista a dos camaras,
   // los tramos donde solo habla uno piden un encuadre distinto.
   const formato = { ...(plan.formato || {}), ...(clip.formato || {}) }
@@ -74,6 +80,8 @@ export function construirFiltro (plan, clip) {
   const recorteDe = (p) =>
     `crop=${par(p.ancho)}:${par(p.alto ?? altoFuente)}:${par(p.x)}:${par(p.y ?? c.y)}`
 
+  const r = (i) => ramas ? ramas[i] : null
+
   if (disposicion === 'fondo') {
     const quien = clip.persona ?? 0
     const p = personas[quien] || personas[0] || { x: 0, ancho: ancho }
@@ -83,8 +91,11 @@ export function construirFiltro (plan, clip) {
     // El recorte se hace una vez y se divide con split: usar [0:v] dos veces
     // funciona en unas versiones de ffmpeg y falla en otras. Ademas asi el
     // recorte no se calcula dos veces.
+    const partes = ramas
+      ? [`[${r(0)}]${recorte}[base1]`, `[${r(1)}]${recorte}[base2]`]
+      : [`[0:v]${recorte},split=2[base1][base2]`]
     return [
-      `[0:v]${recorte},split=2[base1][base2]`,
+      ...partes,
       `[base1]scale=${ancho}:${alto}:force_original_aspect_ratio=increase,` +
         `crop=${ancho}:${alto},boxblur=24:2,eq=brightness=-0.14:saturation=0.8[bg]`,
       `[base2]scale=${ancho}:${altoTira}:force_original_aspect_ratio=increase,` +
@@ -96,18 +107,65 @@ export function construirFiltro (plan, clip) {
   if (disposicion === 'recorte') {
     const quien = clip.persona ?? 0
     const p = personas[quien] || personas[0]
-    return `[0:v]${recorteDe(p)},` +
+    return `[${r(0) || '0:v'}]${recorteDe(p)},` +
       `scale=${ancho}:${alto}:force_original_aspect_ratio=increase,crop=${ancho}:${alto}[v]`
   }
 
   const mitad = Math.round(alto / 2)
-  const partes = [`[0:v]split=2[s0][s1]`, ...personas.slice(0, 2).map((p, i) =>
-    `[s${i}]${recorteDe(p)},` +
+  const partes = [...(ramas ? [] : [`[0:v]split=2[s0][s1]`]), ...personas.slice(0, 2).map((p, i) =>
+    `[${ramas ? r(i) : `s${i}`}]${recorteDe(p)},` +
     `scale=${ancho}:${mitad}:force_original_aspect_ratio=increase,crop=${ancho}:${mitad}[p${i}]`)]
   return `${partes.join(';')};[p0][p1]vstack=inputs=2[v]`
 }
 
 const claveDe = (entrega, id) => `${entrega}__${id}`
+
+/**
+ * Insertos de reaccion: durante esas ventanas la franja se parte en dos
+ * columnas, el que habla a la izquierda y el otro a la derecha. Es el plano de
+ * reaccion de toda la vida, pero sin salir del mismo archivo de video.
+ *
+ * Devuelve el trozo de filtro a encadenar y la etiqueta de salida.
+ */
+function filtroInsertos (plan, clip, entrada, ramas) {
+  const insertos = (clip.insertos || []).filter(x => x.out > x.in)
+  if (!insertos.length) return { cadena: '', salida: entrada }
+
+  const formato = { ...(plan.formato || {}), ...(clip.formato || {}) }
+  const fuente = clip.fuenteInserto || plan.fuente || {}
+  const personas = fuente.personas || []
+  if (personas.length < 2) return { cadena: '', salida: entrada }
+
+  const { ancho = 1080, alto = 1920 } = formato
+  const altoTira = par(alto * (formato.altoTira ?? 0.32))
+  const arriba = par(alto * (formato.tiraY ?? 0.16))
+  const media = par(ancho / 2)
+  const c = fuente.contenido || { y: 0, alto: 0 }
+  const recorte = (p) =>
+    `crop=${par(p.ancho)}:${par(p.alto ?? c.alto)}:${par(p.x)}:${par(p.y ?? c.y)}`
+
+  const partes = [
+    `[${ramas[0]}]${recorte(personas[0])},scale=${media}:${altoTira}:force_original_aspect_ratio=increase,crop=${media}:${altoTira}[ia]`,
+    `[${ramas[1]}]${recorte(personas[1])},scale=${media}:${altoTira}:force_original_aspect_ratio=increase,crop=${media}:${altoTira}[ib]`,
+    `[ia][ib]hstack=inputs=2[dividido]`
+  ]
+  // Una salida de filtro solo se puede consumir una vez: si hay varias
+  // ventanas, hay que duplicar el flujo.
+  if (insertos.length > 1) {
+    partes.push(`[dividido]split=${insertos.length}` + insertos.map((_, i) => `[div${i}]`).join(''))
+  }
+
+  let ultima = entrada
+  insertos.forEach((x, i) => {
+    const fuenteDiv = insertos.length > 1 ? `div${i}` : 'dividido'
+    const desde = +(x.in - clip.in).toFixed(3)
+    const hasta = +(x.out - clip.in).toFixed(3)
+    partes.push(`[${ultima}][${fuenteDiv}]overlay=0:${arriba}:` +
+      `enable='between(t,${desde},${hasta})'[ins${i}]`)
+    ultima = `ins${i}`
+  })
+  return { cadena: ';' + partes.join(';'), salida: ultima }
+}
 
 /** Gráficos de esta entrega que caen sobre este clip. */
 function graficosDe (slug, entrega, clip) {
@@ -143,8 +201,21 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega, avisa
   // que va en coordenadas del original igual que todo lo demas.
   const graficos = graficosDe(slug, entrega, clip)
   const entradas = []
-  let cadena = construirFiltro(plan, clip)      // termina en [v]
+  const disposicion = clip.disposicion || clip.formato?.disposicion || plan.formato?.disposicion || 'apilado'
+  const hayInsertos = (clip.insertos || []).some(x => x.out > x.in)
+  const nBase = disposicion === 'recorte' ? 1 : 2
+  const nRamas = nBase + (hayInsertos ? 2 : 0)
+  const ramas = Array.from({ length: nRamas }, (_, i) => `r${i}`)
+
+  let cadena = `[0:v]split=${nRamas}${ramas.map(x => `[${x}]`).join('')};`
+  cadena += construirFiltro(plan, clip, ramas.slice(0, nBase))   // termina en [v]
   let ultima = 'v'
+
+  if (hayInsertos) {
+    const ins = filtroInsertos(plan, clip, ultima, ramas.slice(nBase))
+    cadena += ins.cadena
+    ultima = ins.salida
+  }
 
   // Los graficos van DEBAJO de los subtitulos: un b-roll a pantalla completa no
   // debe tapar el texto.

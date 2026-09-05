@@ -349,3 +349,26 @@ en `graficos.json` no lo tocaba, y se reutilizaba el WebM viejo.
 
 Los gráficos se componen **debajo** de los subtítulos, para que un b-roll a pantalla completa
 no tape el texto.
+
+## Insertos de reacción
+
+Un clip puede pedir ventanas donde la franja de video se parte en **dos columnas**: quien habla
+a la izquierda y el otro a la derecha. Es el plano de reacción de siempre, sin salir del mismo
+archivo de video.
+
+```json
+{ "id": "c01", "in": 211.24, "out": 264.42,
+  "insertos": [ { "in": 224.8, "out": 228.3 } ],
+  "fuenteInserto": { "contenido": {...}, "personas": [ {...}, {...} ] } }
+```
+
+`fuenteInserto` define los dos recortes; si no está, se usa el `fuente` del plan. Hace falta
+porque el clip suele traer su propio `fuente` con una sola persona.
+
+### Una sola división de `[0:v]`
+
+Usar `[0:v]` más de una vez en el mismo grafo funciona en unas versiones de ffmpeg y revienta
+en otras. Por eso el flujo se parte **una sola vez arriba**, en tantas ramas como necesiten el
+encuadre base y los insertos juntos, y cada filtro recibe las suyas. Lo mismo aplica al
+`[dividido]`: la salida de un filtro se consume una vez, así que con varias ventanas hay que
+duplicarlo con `split`.
