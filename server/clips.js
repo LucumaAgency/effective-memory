@@ -121,9 +121,9 @@ export function construirFiltro (plan, clip, ramas = null) {
 const claveDe = (entrega, id) => `${entrega}__${id}`
 
 /**
- * Insertos de reaccion: durante esas ventanas la franja se parte en dos
- * columnas, el que habla a la izquierda y el otro a la derecha. Es el plano de
- * reaccion de toda la vida, pero sin salir del mismo archivo de video.
+ * Insertos de reaccion: durante esas ventanas la pantalla pasa a la vista
+ * apilada de siempre, el que habla arriba y el otro abajo. Es el plano de
+ * reaccion de toda la vida, sin salir del mismo archivo de video.
  *
  * Devuelve el trozo de filtro a encadenar y la etiqueta de salida.
  */
@@ -137,17 +137,18 @@ function filtroInsertos (plan, clip, entrada, ramas) {
   if (personas.length < 2) return { cadena: '', salida: entrada }
 
   const { ancho = 1080, alto = 1920 } = formato
-  const altoTira = par(alto * (formato.altoTira ?? 0.32))
-  const arriba = par(alto * (formato.tiraY ?? 0.16))
-  const media = par(ancho / 2)
+  const media = par(alto / 2)      // dos filas a pantalla completa
   const c = fuente.contenido || { y: 0, alto: 0 }
   const recorte = (p) =>
     `crop=${par(p.ancho)}:${par(p.alto ?? c.alto)}:${par(p.x)}:${par(p.y ?? c.y)}`
 
+  const celda = (rama, p, etq) =>
+    `[${rama}]${recorte(p)},scale=${ancho}:${media}:force_original_aspect_ratio=increase,` +
+    `crop=${ancho}:${media}[${etq}]`
   const partes = [
-    `[${ramas[0]}]${recorte(personas[0])},scale=${media}:${altoTira}:force_original_aspect_ratio=increase,crop=${media}:${altoTira}[ia]`,
-    `[${ramas[1]}]${recorte(personas[1])},scale=${media}:${altoTira}:force_original_aspect_ratio=increase,crop=${media}:${altoTira}[ib]`,
-    `[ia][ib]hstack=inputs=2[dividido]`
+    celda(ramas[0], personas[0], 'ia'),
+    celda(ramas[1], personas[1], 'ib'),
+    `[ia][ib]vstack=inputs=2[dividido]`
   ]
   // Una salida de filtro solo se puede consumir una vez: si hay varias
   // ventanas, hay que duplicar el flujo.
@@ -160,7 +161,7 @@ function filtroInsertos (plan, clip, entrada, ramas) {
     const fuenteDiv = insertos.length > 1 ? `div${i}` : 'dividido'
     const desde = +(x.in - clip.in).toFixed(3)
     const hasta = +(x.out - clip.in).toFixed(3)
-    partes.push(`[${ultima}][${fuenteDiv}]overlay=0:${arriba}:` +
+    partes.push(`[${ultima}][${fuenteDiv}]overlay=0:0:` +
       `enable='between(t,${desde},${hasta})'[ins${i}]`)
     ultima = `ins${i}`
   })

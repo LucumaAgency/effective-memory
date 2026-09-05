@@ -352,8 +352,8 @@ no tape el texto.
 
 ## Insertos de reacción
 
-Un clip puede pedir ventanas donde la franja de video se parte en **dos columnas**: quien habla
-a la izquierda y el otro a la derecha. Es el plano de reacción de siempre, sin salir del mismo
+Un clip puede pedir ventanas donde la pantalla pasa a la **vista apilada**: quien habla arriba y
+el otro abajo, a pantalla completa. Es el plano de reacción de siempre, sin salir del mismo
 archivo de video.
 
 ```json
