@@ -307,3 +307,36 @@ cambiar.
 Si tampoco está ahí, el proyecto se abre igual (transcripción, comentarios y entregas siguen
 siendo legibles) y la portada avisa de que falta el video. Lo único que no funciona es
 reproducir y renderizar.
+
+## Imágenes y otros archivos de un gráfico
+
+Van **en la misma carpeta que el HTML**, `entregas/vN/graficos/`, y se referencian con su
+nombre a secas:
+
+```html
+<img src="01-titular.jpg">
+```
+
+Funciona igual en los dos contextos porque la ruta que sirve el HTML y la que sirve los
+archivos comparten prefijo: `/api/proyectos/:slug/entregas/:entrega/graficos/:id/...`. En la
+captura, Chrome abre el HTML por `file://` y la referencia relativa resuelve sola.
+
+`pan.html` es la primera plantilla reutilizable: una imagen a pantalla completa que panea de
+lado a lado, con fundido de entrada y salida. Sus parámetros van en `datos`:
+
+| | |
+|---|---|
+| `archivo` | nombre de la imagen en esa carpeta |
+| `duracion` | segundos del plano; debe coincidir con `out - in` |
+| `direccion` | `izquierda-derecha` o `derecha-izquierda` |
+| `recorrido` | cuánto se desplaza, en % del ancho. 12-16 se ve natural |
+| `zoom` | ampliación extra sobre la mínima necesaria |
+| `entrada` | segundos de fundido |
+| `credito` | texto pequeño abajo a la izquierda |
+
+Si el archivo de imagen no existe, el plano se oculta solo y el clip se renderiza sin él.
+
+### Orden de capas
+
+Los gráficos se componen **debajo** de los subtítulos, para que un b-roll a pantalla completa
+no tape el texto.

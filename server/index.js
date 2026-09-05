@@ -122,6 +122,17 @@ app.get('/api/proyectos/:slug/entregas/:entrega/graficos/:id/html', ok(async (re
   const { html } = ED.htmlGrafico(req.params.slug, req.params.entrega, req.params.id)
   res.type('html').set('Cache-Control', 'no-store').send(html)
 }))
+// Archivos que acompañan al HTML de un grafico (imagenes, fuentes...). La ruta
+// imita la del HTML para que las referencias relativas funcionen igual en el
+// iframe de la previa que en la captura por file://.
+app.get('/api/proyectos/:slug/entregas/:entrega/graficos/:id/:archivo', ok(async (req, res) => {
+  const { slug, entrega, archivo } = req.params
+  const f = path.join(dirProyecto(slug), 'entregas', path.basename(entrega),
+    'graficos', path.basename(archivo))
+  if (!fs.existsSync(f)) return res.status(404).end()
+  res.set('Cache-Control', 'no-store').sendFile(f)
+}))
+
 app.get('/api/proyectos/:slug/onda.png', ok(async (req, res) => {
   res.sendFile(await ED.formaDeOnda(req.params.slug))
 }))

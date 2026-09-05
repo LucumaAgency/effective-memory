@@ -134,23 +134,26 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
   // que va en coordenadas del original igual que todo lo demas.
   const graficos = graficosDe(slug, entrega, clip)
   const entradas = []
-  let cadena = conSubtitulos
-    ? `${construirFiltro(plan, clip)};[v]ass=${clave}.ass[v0]`
-    : `${construirFiltro(plan, clip).replace(/\[v\]$/, '[v0]')}`
+  let cadena = construirFiltro(plan, clip)      // termina en [v]
+  let ultima = 'v'
+
+  // Los graficos van DEBAJO de los subtitulos: un b-roll a pantalla completa no
+  // debe tapar el texto.
   for (let i = 0; i < graficos.length; i++) {
     const g = graficos[i]
     const webm = await generarGrafico(slug, entrega, g)
     entradas.push('-i', webm)
     const desde = +(g.in - clip.in).toFixed(3)
     const hasta = +(g.out - clip.in).toFixed(3)
-    const etiqueta = i === graficos.length - 1 ? 'vout' : `v${i + 1}`
-    // setpts retrasa el grafico hasta su momento; sin esto empezaria a correr
-    // en el segundo 0 del clip y para cuando toca mostrarlo ya habria terminado.
+    // setpts retrasa el grafico hasta su momento; sin esto empezaria en el
+    // segundo 0 del clip y ya habria terminado cuando toca mostrarlo.
     cadena += `;[${i + 1}:v]setpts=PTS+${desde}/TB[g${i}]`
-    cadena += `;[v${i}][g${i}]overlay=${g.x || 0}:${g.y || 0}:` +
-      `enable='between(t,${desde},${hasta})':eof_action=pass[${etiqueta}]`
+    cadena += `;[${ultima}][g${i}]overlay=${g.x || 0}:${g.y || 0}:` +
+      `enable='between(t,${desde},${hasta})':eof_action=pass[vg${i}]`
+    ultima = `vg${i}`
   }
-  if (!graficos.length) cadena = cadena.replace(/\[v0\]$/, '[vout]')
+
+  cadena += conSubtitulos ? `;[${ultima}]ass=${clave}.ass[vout]` : `;[${ultima}]copy[vout]`
 
   const args = [
     '-hide_banner', '-loglevel', 'error', '-y',
