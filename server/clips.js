@@ -52,6 +52,8 @@ export function leerPlan (slug, entrega) {
  *  - "apilado": corta a cada persona de la pantalla partida y los apila (2 cabezas parlantes).
  *  - "recorte": una sola persona a pantalla completa.
  */
+export const par = (v) => Math.max(0, Math.round(Number(v) || 0) & ~1)
+
 export function construirFiltro (plan, clip) {
   const { ancho = 1080, alto = 1920 } = plan.formato || {}
   const c = plan.fuente?.contenido || { y: 0, alto: null }
@@ -65,13 +67,17 @@ export function construirFiltro (plan, clip) {
   if (disposicion === 'fondo') {
     const quien = clip.persona ?? 0
     const p = personas[quien] || personas[0] || { x: 0, ancho: plan.fuente?.contenido?.ancho || ancho }
-    const recorte = `crop=${p.ancho}:${altoFuente}:${p.x}:${c.y}`
-    const altoTira = Math.round(alto * (plan.formato?.altoTira ?? 0.32))
-    const arriba = Math.round(alto * (plan.formato?.tiraY ?? 0.16))
+    const recorte = `crop=${par(p.ancho)}:${par(altoFuente)}:${par(p.x)}:${par(c.y)}`
+    const altoTira = par(alto * (plan.formato?.altoTira ?? 0.32))
+    const arriba = par(alto * (plan.formato?.tiraY ?? 0.16))
+    // El recorte se hace una vez y se divide con split: usar [0:v] dos veces
+    // funciona en unas versiones de ffmpeg y falla en otras. Ademas asi el
+    // recorte no se calcula dos veces.
     return [
-      `[0:v]${recorte},scale=${ancho}:${alto}:force_original_aspect_ratio=increase,` +
+      `[0:v]${recorte},split=2[base1][base2]`,
+      `[base1]scale=${ancho}:${alto}:force_original_aspect_ratio=increase,` +
         `crop=${ancho}:${alto},boxblur=24:2,eq=brightness=-0.14:saturation=0.8[bg]`,
-      `[0:v]${recorte},scale=${ancho}:${altoTira}:force_original_aspect_ratio=increase,` +
+      `[base2]scale=${ancho}:${altoTira}:force_original_aspect_ratio=increase,` +
         `crop=${ancho}:${altoTira}[fg]`,
       `[bg][fg]overlay=0:${arriba}[v]`
     ].join(';')
@@ -80,12 +86,14 @@ export function construirFiltro (plan, clip) {
   if (disposicion === 'recorte') {
     const quien = clip.persona ?? 0
     const p = personas[quien] || personas[0]
-    return `[0:v]crop=${p.ancho}:${altoFuente}:${p.x}:${c.y},scale=${ancho}:${alto}:force_original_aspect_ratio=increase,crop=${ancho}:${alto}[v]`
+    return `[0:v]crop=${par(p.ancho)}:${par(altoFuente)}:${par(p.x)}:${par(c.y)},` +
+      `scale=${ancho}:${alto}:force_original_aspect_ratio=increase,crop=${ancho}:${alto}[v]`
   }
 
   const mitad = Math.round(alto / 2)
-  const partes = personas.slice(0, 2).map((p, i) =>
-    `[0:v]crop=${p.ancho}:${altoFuente}:${p.x}:${c.y},scale=${ancho}:${mitad}:force_original_aspect_ratio=increase,crop=${ancho}:${mitad}[p${i}]`)
+  const partes = [`[0:v]split=2[s0][s1]`, ...personas.slice(0, 2).map((p, i) =>
+    `[s${i}]crop=${par(p.ancho)}:${par(altoFuente)}:${par(p.x)}:${par(c.y)},` +
+    `scale=${ancho}:${mitad}:force_original_aspect_ratio=increase,crop=${ancho}:${mitad}[p${i}]`)]
   return `${partes.join(';')};[p0][p1]vstack=inputs=2[v]`
 }
 
@@ -150,9 +158,15 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
     let err = ''
     p.stderr.on('data', d => { err += d })
     p.on('error', e => reject(new Error(`no se pudo ejecutar ffmpeg: ${e.message}`)))
-    p.on('close', code => code === 0
-      ? resolve()
-      : reject(new Error(err.split(/\r?\n/).filter(Boolean).slice(-2).join(' ') || `ffmpeg codigo ${code}`)))
+    p.on('close', code => {
+      if (code === 0) return resolve()
+      const registro = path.join(dir, `${clave}.log`)
+      fs.writeFileSync(registro, `${cfg.ffmpeg} ${args.join(' ')}\n\n${err}`, 'utf8')
+      const lineas = err.split(/\r?\n/).filter(Boolean)
+      // La primera linea que menciona un error suele ser la causa; la cola es consecuencia.
+      const causa = lineas.find(l => /error|invalid|no such|failed|unable|cannot/i.test(l)) || lineas[0]
+      reject(new Error(`${causa || `ffmpeg codigo ${code}`}  ·  log completo en ${registro}`))
+    })
   })
   return salida
 }
