@@ -80,9 +80,14 @@ const ESTILO = {
   fuente: 'Montserrat SemiBold',
   tamano: 64,
   texto: '&H00191A1A',   // &HAABBGGRR
+  borde: 'caja',         // 'caja' (fondo opaco) o 'contorno' (borde alrededor de la letra)
   caja: '&H00FFFFFF',
-  relleno: 10,           // "Outline" con BorderStyle=3 es el padding de la caja
+  contorno: '&H00000000',
+  relleno: 10,           // con borde=caja es el padding; con contorno, su grosor
+  sombra: 0,
   margenV: 260,
+  // 1-3 abajo, 4-6 en medio, 7-9 arriba. El 5 centra vertical y horizontalmente,
+  // que en un apilado cae justo en la union de las dos camaras.
   alineacion: 2,
   maxLinea: 30
 }
@@ -94,6 +99,11 @@ const ESTILO = {
 export function generarAss (transcript, { desde, hasta, ancho, alto, origen = 0, estilo = {}, correcciones = [] }) {
   const e = { ...ESTILO, ...estilo }
   const cues = armarCues(transcript, desde, hasta, { maxLinea: e.maxLinea })
+
+  // BorderStyle 3 pinta una caja opaca detras del texto; 1 dibuja el contorno.
+  const estiloBorde = e.borde === 'contorno' ? 1 : 3
+  const contorno = e.borde === 'contorno' ? e.contorno : e.caja
+  const fondo = e.borde === 'contorno' ? e.contorno : e.caja
 
   const aplicar = (t) => correcciones.reduce(
     (acc, [patron, rep]) => acc.replace(new RegExp(patron, 'g'), rep), t)
@@ -108,7 +118,7 @@ YCbCr Matrix: TV.709
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Caja,${e.fuente},${e.tamano},${e.texto},${e.texto},${e.caja},${e.caja},0,0,0,0,100,100,0,0,3,${e.relleno},0,${e.alineacion},60,60,${e.margenV},1
+Style: Caja,${e.fuente},${e.tamano},${e.texto},${e.texto},${contorno},${fondo},0,0,0,0,100,100,0,0,${estiloBorde},${e.relleno},${e.sombra},${e.alineacion},60,60,${e.margenV},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
