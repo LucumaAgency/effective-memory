@@ -30,7 +30,7 @@ function correrFfmpeg (args, cwd) {
  * cada instante exacto y se captura. Asi el resultado es identico en cualquier
  * maquina, por lenta que vaya, y reproducible entre iteraciones.
  */
-export async function capturar (htmlPath, { ancho, alto, duracion, datos = {}, salidaDir, instante = null }) {
+export async function capturar (htmlPath, { ancho, alto, duracion, datos = {}, salidaDir, instante = null, alAvanzar }) {
   const ejecutable = buscarNavegador()
   if (!ejecutable) {
     throw new Error('No encuentro Chrome ni Edge. Instala uno, o pon la ruta en NAVEGADOR= dentro del .env')
@@ -69,6 +69,8 @@ export async function capturar (htmlPath, { ancho, alto, duracion, datos = {}, s
         path: path.join(salidaDir, `f${String(i).padStart(5, '0')}.png`),
         omitBackground: true    // de aqui sale el canal alfa
       })
+      // Capturar 180 fotogramas tarda un minuto: sin avisar, parece colgado.
+      if (alAvanzar && i % 5 === 0) alAvanzar(((i + 1) / total) * 100)
     }
     return total
   } finally {
@@ -100,7 +102,7 @@ export function htmlDe (slug, entrega, g) {
 }
 
 /** Genera (o reutiliza) el WebM de un grafico. */
-export async function generar (slug, entrega, g, { forzar = false } = {}) {
+export async function generar (slug, entrega, g, { forzar = false, alAvanzar } = {}) {
   const dir = path.join(dirGraficos(slug), entrega, g.id)
   const destino = path.join(dirGraficos(slug), entrega, `${g.id}.webm`)
   const html = htmlDe(slug, entrega, g)
@@ -113,7 +115,7 @@ export async function generar (slug, entrega, g, { forzar = false } = {}) {
   fs.mkdirSync(path.dirname(destino), { recursive: true })
   await capturar(html, {
     ancho: g.ancho, alto: g.alto, duracion: g.out - g.in,
-    datos: g.datos || {}, salidaDir: dir
+    datos: g.datos || {}, salidaDir: dir, alAvanzar
   })
   await empaquetar(dir, destino)
   fs.rmSync(dir, { recursive: true, force: true })

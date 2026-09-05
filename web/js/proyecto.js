@@ -503,8 +503,12 @@ function aplicarEstadoClips (r) {
   const enCurso = r.fase === 'renderizando'
 
   if (enCurso) {
-    caja.innerHTML = `<div>Renderizando <b>${escapar(r.actual || '')}</b> de ${escapar(r.entrega || '')} (${r.i + 1} de ${r.total})…</div>
-      <div class="barra"><i style="width:${(r.i / r.total) * 100}%"></i></div>`
+    // El avance combina el clip actual con lo que lleva de el.
+    const dentro = (r.pc || 0) / 100
+    const total = ((r.i + dentro) / r.total) * 100
+    caja.innerHTML = `<div>Renderizando <b>${escapar(r.actual || '')}</b> de ${escapar(r.entrega || '')}
+      (${r.i + 1} de ${r.total}) · ${escapar(r.paso || '')} ${r.pc || 0}%</div>
+      <div class="barra"><i style="width:${total.toFixed(1)}%"></i></div>`
   } else if (r.fase === 'error') {
     caja.innerHTML = `<div style="color:var(--corte)">Falló en ${escapar(r.actual || '')}: ${escapar(r.error || '')}</div>`
   } else caja.innerHTML = ''
@@ -522,7 +526,7 @@ function aplicarEstadoClips (r) {
     const hecho = hechos.get(`${entregaVisible}__${id}`) || hechos.get(id)
 
     if (enCurso && r.actual === id && r.entrega === entregaVisible) {
-      etiqueta.textContent = 'renderizando…'; etiqueta.className = 'estadoClip curso'
+      etiqueta.textContent = `${r.pc || 0}%`; etiqueta.className = 'estadoClip curso'
     } else if (r.fase === 'error' && r.actual === id) {
       etiqueta.textContent = 'falló'; etiqueta.className = 'estadoClip fallo'
     } else if (hecho) {

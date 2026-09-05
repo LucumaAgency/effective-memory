@@ -69,10 +69,15 @@ export function construirFiltro (plan, clip) {
   // "fondo": la franja util del video, nitida, sobre una copia de si misma
   // ampliada y difuminada. Para fuentes muy apaisadas (una videollamada con
   // barras negras) donde recortar a 9:16 obligaria a ampliar 5 veces.
+  // Cada persona puede traer su propio recorte vertical: una webcam puede venir
+  // enmarcada dentro de su panel, con bordes oscuros que hay que quitar.
+  const recorteDe = (p) =>
+    `crop=${par(p.ancho)}:${par(p.alto ?? altoFuente)}:${par(p.x)}:${par(p.y ?? c.y)}`
+
   if (disposicion === 'fondo') {
     const quien = clip.persona ?? 0
-    const p = personas[quien] || personas[0] || { x: 0, ancho: plan.fuente?.contenido?.ancho || ancho }
-    const recorte = `crop=${par(p.ancho)}:${par(altoFuente)}:${par(p.x)}:${par(c.y)}`
+    const p = personas[quien] || personas[0] || { x: 0, ancho: ancho }
+    const recorte = recorteDe(p)
     const altoTira = par(alto * (formato.altoTira ?? 0.32))
     const arriba = par(alto * (formato.tiraY ?? 0.16))
     // El recorte se hace una vez y se divide con split: usar [0:v] dos veces
@@ -91,13 +96,13 @@ export function construirFiltro (plan, clip) {
   if (disposicion === 'recorte') {
     const quien = clip.persona ?? 0
     const p = personas[quien] || personas[0]
-    return `[0:v]crop=${par(p.ancho)}:${par(altoFuente)}:${par(p.x)}:${par(c.y)},` +
+    return `[0:v]${recorteDe(p)},` +
       `scale=${ancho}:${alto}:force_original_aspect_ratio=increase,crop=${ancho}:${alto}[v]`
   }
 
   const mitad = Math.round(alto / 2)
   const partes = [`[0:v]split=2[s0][s1]`, ...personas.slice(0, 2).map((p, i) =>
-    `[s${i}]crop=${par(p.ancho)}:${par(altoFuente)}:${par(p.x)}:${par(c.y)},` +
+    `[s${i}]${recorteDe(p)},` +
     `scale=${ancho}:${mitad}:force_original_aspect_ratio=increase,crop=${ancho}:${mitad}[p${i}]`)]
   return `${partes.join(';')};[p0][p1]vstack=inputs=2[v]`
 }
@@ -110,7 +115,7 @@ function graficosDe (slug, entrega, clip) {
   return (plan?.graficos || []).filter(g => g.clip === clip.id)
 }
 
-async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
+async function renderizarUno (slug, plan, clip, transcript, meta, entrega, avisar = () => {}) {
   const dir = dirClips(slug)
   fs.mkdirSync(dir, { recursive: true })
   const { ancho = 1080, alto = 1920 } = plan.formato || {}
@@ -145,7 +150,8 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
   // debe tapar el texto.
   for (let i = 0; i < graficos.length; i++) {
     const g = graficos[i]
-    const webm = await generarGrafico(slug, entrega, g)
+    const webm = await generarGrafico(slug, entrega, g,
+      { alAvanzar: (pc) => avisar(`gráfico ${g.id}`, pc) })
     entradas.push('-i', webm)
     const desde = +(g.in - clip.in).toFixed(3)
     const hasta = +(g.out - clip.in).toFixed(3)
@@ -167,12 +173,18 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega) {
     '-filter_complex', cadena, '-map', '[vout]', '-map', '0:a?',
     '-c:v', 'libx264', '-crf', '20', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart',
+    '-progress', 'pipe:1', '-nostats',
     salida
   ]
+  const duracionClip = Math.max(0.5, clip.out - clip.in)
 
   await new Promise((resolve, reject) => {
     const p = spawn(cfg.ffmpeg, args, { cwd: dir, windowsHide: true })
     let err = ''
+    p.stdout.on('data', d => {
+      const m = /out_time_ms=(\d+)/.exec(d.toString())
+      if (m) avisar('renderizando', Math.min(99, (Number(m[1]) / 1e6 / duracionClip) * 100))
+    })
     p.stderr.on('data', d => { err += d })
     p.on('error', e => reject(new Error(`no se pudo ejecutar ffmpeg: ${e.message}`)))
     p.on('close', code => {
@@ -210,9 +222,12 @@ export function renderizarClips (slug, { entrega, ids = null }) {
   cola.set(slug, { fase: 'renderizando', i: 0, total: lista.length, actual: lista[0].id, entrega, latido: Date.now() })
   ;(async () => {
     for (let i = 0; i < lista.length; i++) {
-      cola.set(slug, { fase: 'renderizando', i, total: lista.length, actual: lista[i].id, entrega, latido: Date.now() })
+      cola.set(slug, { fase: 'renderizando', i, total: lista.length, actual: lista[i].id, entrega, paso: 'preparando', pc: 0, latido: Date.now() })
       try {
-        await renderizarUno(slug, plan, lista[i], transcript, meta, entrega)
+        await renderizarUno(slug, plan, lista[i], transcript, meta, entrega, (paso, pc) => {
+          const t = cola.get(slug)
+          if (t?.fase === 'renderizando') cola.set(slug, { ...t, paso, pc: Math.round(pc), latido: Date.now() })
+        })
       } catch (e) {
         cola.set(slug, { fase: 'error', i, total: lista.length, actual: lista[i].id, entrega, error: e.message })
         return
