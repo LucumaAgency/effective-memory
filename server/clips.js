@@ -189,7 +189,9 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega, avisa
     const { texto } = generarAss(transcript, {
       desde: clip.in, hasta: clip.out, ancho, alto, origen: clip.in,
       estilo: { ...(plan.estilo || {}), ...(clip.estilo || {}) },
-      correcciones: correccionesDe(slug, plan)
+      correcciones: correccionesDe(slug, plan),
+      // Mientras se ven las dos camaras, el subtitulo se va a la costura.
+      centradoEn: (clip.insertos || []).filter(x => x.out > x.in)
     })
     fs.writeFileSync(ass, texto, 'utf8')
   } else if (fs.existsSync(ass)) {

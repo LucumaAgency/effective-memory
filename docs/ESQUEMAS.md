@@ -365,6 +365,15 @@ archivo de video.
 `fuenteInserto` define los dos recortes; si no está, se usa el `fuente` del plan. Hace falta
 porque el clip suele traer su propio `fuente` con una sola persona.
 
+### El subtítulo sigue al encuadre
+
+Mientras dura un inserto, los subtítulos se centran verticalmente (`{\an5}` por línea), que en
+la vista apilada cae justo en la unión entre las dos cámaras. Fuera del inserto vuelven a su
+posición normal.
+
+Para que el salto sea exacto, los cues se **parten en las fronteras** del inserto: una frase que
+empieza antes y termina dentro se divide en dos líneas, cada una con su posición.
+
 ### Una sola división de `[0:v]`
 
 Usar `[0:v]` más de una vez en el mismo grafo funciona en unas versiones de ffmpeg y revienta

@@ -96,9 +96,29 @@ const ESTILO = {
  * Genera el texto de un .ass. Si `origen` viene, los tiempos se rebasan
  * restandolo: los clips empiezan en 0 aunque salgan del minuto 14.
  */
-export function generarAss (transcript, { desde, hasta, ancho, alto, origen = 0, estilo = {}, correcciones = [] }) {
+/**
+ * Parte los cues en las fronteras de unas ventanas, para poder tratarlos
+ * distinto dentro y fuera. Un cue a caballo se dividiria en dos.
+ */
+function partirEn (cues, ventanas) {
+  if (!ventanas.length) return cues.map(c => ({ ...c, dentro: false }))
+  const cortes = ventanas.flatMap(v => [v.in, v.out])
+  const salida = []
+  for (const c of cues) {
+    let ini = c.in
+    for (const t of cortes.filter(t => t > c.in && t < c.out).sort((a, b) => a - b)) {
+      salida.push({ ...c, in: ini, out: t }); ini = t
+    }
+    salida.push({ ...c, in: ini, out: c.out })
+  }
+  return salida
+    .filter(c => c.out - c.in > 0.08)   // restos de un corte justo en el borde
+    .map(c => ({ ...c, dentro: ventanas.some(v => c.in >= v.in - 0.01 && c.out <= v.out + 0.01) }))
+}
+
+export function generarAss (transcript, { desde, hasta, ancho, alto, origen = 0, estilo = {}, correcciones = [], centradoEn = [] }) {
   const e = { ...ESTILO, ...estilo }
-  const cues = armarCues(transcript, desde, hasta, { maxLinea: e.maxLinea })
+  const cues = partirEn(armarCues(transcript, desde, hasta, { maxLinea: e.maxLinea }), centradoEn)
 
   // BorderStyle 3 pinta una caja opaca detras del texto; 1 dibuja el contorno.
   const estiloBorde = e.borde === 'contorno' ? 1 : 3
@@ -123,7 +143,11 @@ Style: Caja,${e.fuente},${e.tamano},${e.texto},${e.texto},${contorno},${fondo},0
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `
-  const filas = cues.map(c =>
-    `Dialogue: 0,${hms(c.in - origen)},${hms(c.out - origen)},Caja,,0,0,0,,${dosLineas(aplicar(c.texto), e.maxLinea)}`)
+  const filas = cues.map(c => {
+    // \an5 centra vertical y horizontalmente. En una vista apilada eso cae
+    // exactamente en la union entre las dos camaras.
+    const marca = c.dentro ? '{\\an5}' : ''
+    return `Dialogue: 0,${hms(c.in - origen)},${hms(c.out - origen)},Caja,,0,0,0,,${marca}${dosLineas(aplicar(c.texto), e.maxLinea)}`
+  })
   return { texto: cabecera + filas.join('\n') + '\n', cues: cues.length }
 }
