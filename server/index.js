@@ -13,6 +13,8 @@ import { buscarNavegador } from './navegador.js'
 import * as REF from './referencias.js'
 import * as SAL from './salida.js'
 import * as ED from './edicion.js'
+import { revisar } from './revision.js'
+import * as PR from './presets.js'
 import { leerJson } from './util.js'
 
 const app = express()
@@ -111,6 +113,20 @@ app.post('/api/proyectos/:slug/render', ok(async (req, res) => {
 app.get('/api/proyectos/:slug/render/estado', ok(async (req, res) => {
   res.json({ ...R.estadoRender(req.params.slug), renders: R.listarRenders(req.params.slug) })
 }))
+app.get('/api/presets', ok(async (_req, res) => res.json(PR.listar())))
+app.post('/api/proyectos/:slug/presets', ok(async (req, res) => {
+  const { entrega, nombre } = req.body || {}
+  res.json(PR.guardar(req.params.slug, entrega, nombre))
+}))
+app.post('/api/proyectos/:slug/presets/aplicar', ok(async (req, res) => {
+  const { entrega, nombre } = req.body || {}
+  res.json(PR.aplicar(req.params.slug, entrega, nombre))
+}))
+
+app.get('/api/proyectos/:slug/revisar', ok(async (req, res) => {
+  res.json(revisar(req.params.slug, req.query.entrega))
+}))
+
 // --- edicion desde la timeline ---
 app.patch('/api/proyectos/:slug/entregas/:entrega/clips/:id', ok(async (req, res) => {
   res.json(ED.editarClip(req.params.slug, req.params.entrega, req.params.id, req.body || {}))

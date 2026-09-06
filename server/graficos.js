@@ -55,7 +55,31 @@ export async function capturar (htmlPath, { ancho, alto, duracion, datos = {}, s
     await pagina.evaluate(() => document.fonts?.ready)
 
     // instante != null: un solo fotograma, para la vista previa.
-    const total = instante === null ? Math.max(1, Math.round(duracion * FPS)) : 1
+    // Cuanto se mueve de verdad: capturar mas alla de eso es fotocopiar la
+    // misma imagen. Un rotulo que se anima medio segundo no necesita 1600
+    // capturas para durar 53 s.
+    let capturar = duracion
+    if (instante === null) {
+      const finAnimacion = await pagina.evaluate(() => {
+        if (typeof window.dibujar === 'function') return null   // reloj propio: hay que capturarlo todo
+        const fines = document.getAnimations().map(a => {
+          const t = a.effect?.getTiming?.() || {}
+          const iter = t.iterations
+          if (iter === Infinity) return Infinity
+          const dur = typeof t.duration === 'number' ? t.duration : 0
+          return (t.delay || 0) + dur * (iter || 1) + (t.endDelay || 0)
+        })
+        return fines.length ? Math.max(...fines) : 0
+      })
+      if (finAnimacion !== null && isFinite(finAnimacion)) {
+        capturar = Math.min(duracion, finAnimacion / 1000 + 2 / FPS)
+      }
+    }
+    const total = instante === null ? Math.max(1, Math.round(capturar * FPS)) : 1
+    if (instante === null && capturar < duracion - 0.05) {
+      console.log(`  [grafico] ${path.basename(htmlPath)}: ${total} capturas para ${capturar.toFixed(2)} s ` +
+        `animados, el resto (${(duracion - capturar).toFixed(1)} s) se clona`)
+    }
     for (let i = 0; i < total; i++) {
       const ms = instante === null ? (i / FPS) * 1000 : instante * 1000
       await pagina.evaluate((t) => {
@@ -72,17 +96,26 @@ export async function capturar (htmlPath, { ancho, alto, duracion, datos = {}, s
       // Capturar 180 fotogramas tarda un minuto: sin avisar, parece colgado.
       if (alAvanzar && i % 5 === 0) alAvanzar(((i + 1) / total) * 100)
     }
-    return total
+    return { total, capturado: instante === null ? capturar : 0 }
   } finally {
     await navegador.close()
   }
 }
 
-/** PNG con alfa -> WebM con alfa. Se cachea: componerlo despues es instantaneo. */
-export async function empaquetar (dirFrames, destino) {
+/**
+ * PNG con alfa -> WebM con alfa. Se cachea: componerlo despues es instantaneo.
+ * Si solo se capturo la parte animada, el ultimo fotograma se clona hasta
+ * completar la duracion pedida.
+ */
+export async function empaquetar (dirFrames, destino, { capturado = 0, duracion = 0 } = {}) {
+  const sobra = Math.max(0, duracion - capturado)
+  const filtro = sobra > 0.05
+    ? ['-vf', `tpad=stop_mode=clone:stop_duration=${sobra.toFixed(3)}`]
+    : []
   await correrFfmpeg([
     '-hide_banner', '-loglevel', 'error', '-y',
     '-framerate', String(FPS), '-i', 'f%05d.png',
+    ...filtro,
     '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '28',
     '-auto-alt-ref', '0', destino
   ], dirFrames)
@@ -96,9 +129,16 @@ export function leerPlanGraficos (slug, entrega) {
   return leerJson(path.join(dirProyecto(slug), 'entregas', entrega, 'graficos.json'), null)
 }
 
-/** Ruta del HTML de un grafico, que vive junto a su entrega. */
+/**
+ * HTML de un grafico. Primero se busca junto a su entrega, y si no esta, entre
+ * las plantillas de la app: los patrones que ya se repiten dejan de copiarse a
+ * mano en cada proyecto, pero un proyecto siempre puede traer el suyo propio.
+ */
 export function htmlDe (slug, entrega, g) {
-  return path.join(dirProyecto(slug), 'entregas', entrega, 'graficos', g.archivo)
+  const propio = path.join(dirProyecto(slug), 'entregas', entrega, 'graficos', g.archivo)
+  if (fs.existsSync(propio)) return propio
+  const plantilla = path.join(cfg.raizApp, 'plantillas', path.basename(g.archivo))
+  return fs.existsSync(plantilla) ? plantilla : propio
 }
 
 /**
@@ -152,11 +192,12 @@ export async function generar (slug, entrega, g, { forzar = false, alAvanzar } =
     return destino     // nada cambio desde la ultima vez
   }
   fs.mkdirSync(path.dirname(destino), { recursive: true })
-  await capturar(html, {
-    ancho: g.ancho, alto: g.alto, duracion: g.out - g.in,
+  const duracion = g.out - g.in
+  const { capturado } = await capturar(html, {
+    ancho: g.ancho, alto: g.alto, duracion,
     datos: g.datos || {}, salidaDir: dir, alAvanzar
   })
-  await empaquetar(dir, destino)
+  await empaquetar(dir, destino, { capturado, duracion })
   fs.rmSync(dir, { recursive: true, force: true })
   fs.writeFileSync(marca, actual, 'utf8')
   return destino

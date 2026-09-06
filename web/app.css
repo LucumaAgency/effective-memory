@@ -166,3 +166,14 @@ video{width:100%;background:#000;border-radius:11px;display:block}
 .capaSub{position:absolute;left:0;right:0;display:flex;justify-content:center;pointer-events:none}
 .capaSub span{background:#fff;color:#191A1A;font-weight:600;padding:.18em .5em;
   border-radius:2px;line-height:1.35;text-align:center;white-space:pre-line}
+
+/* revision de la entrega */
+.revision{border:1px solid var(--linea);border-radius:9px;padding:12px 14px;margin-bottom:12px;background:var(--panel2)}
+.revision h3{margin:0 0 8px;font-size:13px}
+.revision .fila{display:flex;gap:9px;align-items:flex-start;margin-bottom:7px;font-size:12.5px}
+.revision .sello{flex:none;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
+  padding:1px 7px;border-radius:20px;border:1px solid var(--linea);margin-top:1px}
+.revision .error .sello{color:var(--corte);border-color:#6b3229}
+.revision .aviso .sello{color:var(--subtitulo);border-color:#5a4a1e}
+.revision .donde{color:var(--suave)}
+.revision .arreglo{color:var(--suave);font-size:11.5px}

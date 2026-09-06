@@ -381,3 +381,34 @@ en otras. Por eso el flujo se parte **una sola vez arriba**, en tantas ramas com
 encuadre base y los insertos juntos, y cada filtro recibe las suyas. Lo mismo aplica al
 `[dividido]`: la salida de un filtro se consume una vez, así que con varias ventanas hay que
 duplicarlo con `split`.
+
+## Plantillas de gráfico
+
+`plantillas/` en el repo de la app guarda los patrones que ya se repiten: `pan.html` (imagen con
+paneo) y `pregunta.html` (rótulo blanco con texto negro). Un gráfico busca su `archivo` primero
+junto a su entrega y, si no está, entre las plantillas. Así un proyecto nuevo las usa sin
+copiarlas, y cualquiera puede traer su versión propia poniendo un archivo con ese nombre.
+
+## Presets de proyecto
+
+`presets/<nombre>.json` en el repo de datos guarda el *look* de un proyecto: encuadre, maqueta,
+estilo de subtítulos y la posición de cada tipo de gráfico. **No guarda tiempos ni textos**, que
+son del video concreto.
+
+- **Guardar look** en la sección Clips escribe el preset desde la entrega visible.
+- El selector de al lado lo aplica a otra entrega: cambia encuadre y estilo de todos los clips
+  sin tocar los cortes.
+
+Sirve para que el segundo video de una serie no se arme copiando a mano lo del primero, que es
+donde se pierden los detalles.
+
+## Revisión previa
+
+`GET /api/proyectos/:slug/revisar?entrega=v1`, o el botón **Revisar**. Comprueba sin renderizar:
+
+- clips que empiezan o terminan a media frase, o que dejan oír la palabra siguiente
+- clips fuera de la duración del video, o sin ninguna palabra dentro
+- ids repetidos, gráficos que apuntan a un clip inexistente
+- gráficos sin su HTML o sin sus imágenes
+- gráficos o insertos que se salen del clip, o que se pisan entre sí
+- `datos.duracion` que no cuadra con la ventana del gráfico

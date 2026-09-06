@@ -1,0 +1,68 @@
+<meta charset="utf-8">
+<!--
+  Rotulo con la pregunta que se esta respondiendo.
+  Rectangulo blanco, texto negro dentro.
+
+  Todo lo animado es CSS: el motor captura fijando animation.currentTime, asi que
+  setTimeout y requestAnimationFrame no sirven aqui.
+
+  Datos que espera en window.DATOS:
+    texto     la pregunta                                    (obligatorio)
+    numero    "1", "2"... sale como etiqueta pequena arriba  (opcional)
+    duracion  segundos que dura el rotulo                    (obligatorio)
+    entrada   segundos del fundido de entrada. 0.5 por defecto
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
+    font-family: "Montserrat", "Segoe UI", system-ui, sans-serif; }
+
+  .tarjeta {
+    position: absolute; inset: 0;
+    /* Sin esquinas redondeadas: el alfa de las curvas se ve sucio al componer. */
+    background: #fff;
+    padding: 42px 48px;
+    display: flex; flex-direction: column; justify-content: center;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, .35);
+    opacity: 0; transform: translateY(26px);
+    animation: entrar var(--fundido) cubic-bezier(.16, 1, .3, 1) forwards;
+  }
+
+  .numero {
+    font-size: 26px; font-weight: 800; letter-spacing: .14em;
+    color: #1C8E80; text-transform: uppercase; margin-bottom: 16px;
+  }
+
+  .texto {
+    font-size: var(--tam); font-weight: 700; line-height: 1.24;
+    color: #141414; text-wrap: balance;
+  }
+
+  @keyframes entrar { to { opacity: 1; transform: translateY(0) } }
+</style>
+
+<div class="tarjeta" id="tarjeta">
+  <div class="numero" id="numero"></div>
+  <div class="texto" id="texto"></div>
+</div>
+
+<script>
+  const d = window.DATOS || {}
+  const raiz = document.documentElement.style
+  raiz.setProperty('--fundido', (Number(d.entrada ?? 0.5)) + 's')
+
+  const numero = document.getElementById('numero')
+  if (d.numero) numero.textContent = 'Pregunta ' + d.numero; else numero.remove()
+
+  const texto = document.getElementById('texto')
+  texto.textContent = d.texto || ''
+
+  // El tamano se ajusta al hueco: una pregunta larga no puede desbordar la
+  // tarjeta, y una corta no deberia quedar diminuta.
+  const tarjeta = document.getElementById('tarjeta')
+  let tam = 54
+  raiz.setProperty('--tam', tam + 'px')
+  while (tam > 26 && texto.scrollHeight > tarjeta.clientHeight - (numero.isConnected ? 110 : 60)) {
+    tam -= 2
+    raiz.setProperty('--tam', tam + 'px')
+  }
+</script>

@@ -154,6 +154,7 @@ function pintarComs () {
       })
     }
     cargarReferencias()
+cargarPresets()
 cargar()
   })
 }
@@ -394,6 +395,62 @@ async function lanzarClips (ids) {
 
 $('#entregaClips').onchange = (e) => { entregaVisible = e.target.value; pintarClips(); pintarPista() }
 $('#btnTodos').onclick = () => lanzarClips(null)
+
+async function cargarPresets () {
+  try {
+    const ps = await api('/api/presets')
+    const sel = $('#preset')
+    sel.innerHTML = '<option value="">— aplicar look —</option>' +
+      ps.map(p => `<option value="${escapar(p.nombre)}">${escapar(p.titulo)}</option>`).join('')
+  } catch { /* sin presets */ }
+}
+$('#preset').onchange = async (e) => {
+  const nombre = e.target.value
+  if (!nombre) return
+  e.target.value = ''
+  if (!confirm(`¿Aplicar el look "${nombre}" a la entrega ${entregaVisible}?\n\nCambia encuadre y estilo de todos los clips. Los tiempos y los textos no se tocan.`)) return
+  try {
+    const r = await api(`/api/proyectos/${slug}/presets/aplicar`, {
+      method: 'POST', body: JSON.stringify({ entrega: entregaVisible, nombre })
+    })
+    alert(`Aplicado a ${r.clips} clips.`)
+    cargar()
+  } catch (err) { alert(err.message) }
+}
+$('#btnGuardarPreset').onclick = async () => {
+  const nombre = prompt('Nombre para este look:', D.meta?.titulo || slug)
+  if (!nombre) return
+  try {
+    await api(`/api/proyectos/${slug}/presets`, {
+      method: 'POST', body: JSON.stringify({ entrega: entregaVisible, nombre })
+    })
+    await cargarPresets()
+    alert('Guardado. Ya puedes aplicarlo a otro proyecto.')
+  } catch (e) { alert(e.message) }
+}
+
+/** Revisa la entrega antes de gastar un render. */
+$('#btnRevisar').onclick = async () => {
+  const caja = $('#revision')
+  const b = $('#btnRevisar'); b.disabled = true
+  try {
+    const r = await api(`/api/proyectos/${slug}/revisar?entrega=${encodeURIComponent(entregaVisible)}`)
+    caja.innerHTML = `<div class="revision">
+      <h3>${r.clips} clips · ${r.graficos} gráficos ·
+        ${r.errores ? `<span style="color:var(--corte)">${r.errores} errores</span>` : 'sin errores'} ·
+        ${r.avisos} avisos</h3>
+      ${r.lista.length
+        ? r.lista.map(a => `<div class="fila ${a.nivel}">
+            <span class="sello">${a.nivel}</span>
+            <div><span class="donde">${escapar(a.donde)}</span> — ${escapar(a.texto)}
+              <div class="arreglo">${escapar(a.arreglo)}</div></div>
+          </div>`).join('')
+        : '<div class="meta">Todo en orden.</div>'}
+    </div>`
+  } catch (e) {
+    caja.innerHTML = `<div class="revision" style="color:var(--corte)">${escapar(e.message)}</div>`
+  } finally { b.disabled = false }
+}
 
 function pintarGraficos (entrega) {
   const todos = entrega.graficos?.graficos || []
@@ -738,4 +795,5 @@ document.addEventListener('keydown', e => {
 })
 
 cargarReferencias()
+cargarPresets()
 cargar()

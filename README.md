@@ -103,6 +103,14 @@ Y al revés: el botón **Analizar salida** de cada clip lo mide con la misma var
 una referencia en el selector de la sección Clips, muestra la tabla de diferencias con las
 medidas fuera de tolerancia marcadas. Así se cierra el bucle sin tener que explicar nada.
 
+## Antes de renderizar
+
+El botón **Revisar** de la sección Clips comprueba la entrega sin gastar un render: cortes a
+media frase, palabras de más al final, gráficos sin su imagen, solapes entre insertos y b-roll.
+
+**Guardar look** guarda el encuadre y el estilo de un proyecto como preset, y el selector de al
+lado lo aplica a otro. Los tiempos y los textos no se tocan.
+
 ## Estado
 
 - **Fase 1 · circuito completo** — listo: ingest, dashboard, comentarios, push/pull.

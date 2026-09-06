@@ -1,0 +1,80 @@
+<meta charset="utf-8">
+<!--
+  B-roll con paneo horizontal.
+
+  La imagen se escala para cubrir el cuadro con holgura y se desplaza de lado a
+  lado. Todo es animacion CSS: el motor captura fijando animation.currentTime,
+  asi que setTimeout o requestAnimationFrame no funcionarian.
+
+  Datos que espera en window.DATOS:
+    archivo    nombre del archivo, en esta misma carpeta   (obligatorio)
+    duracion   segundos que dura el plano                  (obligatorio)
+    direccion  "izquierda-derecha" (por defecto) o "derecha-izquierda"
+    recorrido  cuanto se desplaza, en % del ancho del cuadro. 12 por defecto
+    zoom       ampliacion extra, 1.0 = solo lo necesario para el paneo
+    entrada    segundos de fundido al entrar y al salir. 0.35 por defecto
+    credito    texto pequeno abajo a la izquierda, opcional
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+
+  .marco {
+    position: absolute; inset: 0; overflow: hidden;
+    opacity: 0;
+    animation: entrar var(--fundido) ease-out forwards,
+               salir  var(--fundido) ease-in  forwards;
+    animation-delay: 0s, calc(var(--dur) - var(--fundido));
+  }
+
+  /* Ancho extra para que quede recorrido a los lados sin descubrir bordes. */
+  .marco img {
+    position: absolute; top: 50%; left: 50%;
+    height: 100%; width: auto; min-width: 100%;
+    object-fit: cover;
+    transform: translate(-50%, -50%) scale(var(--zoom)) translateX(var(--desde));
+    animation: panear var(--dur) linear forwards;
+  }
+
+  .credito {
+    position: absolute; left: 34px; bottom: 30px;
+    font: 600 26px/1.2 "Montserrat", "Segoe UI", system-ui, sans-serif;
+    color: #fff; opacity: .78; letter-spacing: .02em;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, .8);
+  }
+
+  @keyframes panear {
+    to { transform: translate(-50%, -50%) scale(var(--zoom)) translateX(var(--hasta)); }
+  }
+  @keyframes entrar { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes salir  { to { opacity: 0 } }
+</style>
+
+<div class="marco" id="marco">
+  <img id="foto" alt="">
+  <div class="credito" id="credito"></div>
+</div>
+
+<script>
+  const d = window.DATOS || {}
+  const dur = Number(d.duracion) || 5
+  const recorrido = Number(d.recorrido ?? 12)
+  const zoom = Number(d.zoom ?? 1) * (1 + recorrido / 100)
+  const fundido = Number(d.entrada ?? 0.35)
+  const haciaLaDerecha = (d.direccion || 'izquierda-derecha') === 'izquierda-derecha'
+
+  // Paneo de izquierda a derecha = la imagen se mueve hacia la izquierda.
+  const desde = haciaLaDerecha ? recorrido / 2 : -recorrido / 2
+  const raiz = document.documentElement.style
+  raiz.setProperty('--dur', dur + 's')
+  raiz.setProperty('--fundido', fundido + 's')
+  raiz.setProperty('--zoom', zoom)
+  raiz.setProperty('--desde', desde + '%')
+  raiz.setProperty('--hasta', -desde + '%')
+
+  const foto = document.getElementById('foto')
+  // Si la imagen no esta, no dejamos un plano en blanco encima del video.
+  foto.onerror = () => { document.getElementById('marco').style.display = 'none' }
+  foto.src = d.archivo || ''
+  const credito = document.getElementById('credito')
+  if (d.credito) credito.textContent = d.credito; else credito.remove()
+</script>
