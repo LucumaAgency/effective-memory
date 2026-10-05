@@ -152,6 +152,25 @@ export function recursosDe (slug, entrega, g) {
     .map(v => path.join(dir, path.basename(v)))
 }
 
+/**
+ * Los datos con las rutas de recurso resueltas a la carpeta de la entrega.
+ *
+ * Una plantilla de la app (plantillas/pan.html) se abre desde SU carpeta, asi
+ * que "01-foto.jpg" a secas buscaba la foto junto a la plantilla, no junto a la
+ * entrega: la imagen no cargaba, la plantilla se ocultaba sola y la captura
+ * salia transparente. Con la URL absoluta da igual desde donde se abra el HTML.
+ */
+function datosResueltos (slug, entrega, g) {
+  const dir = path.join(dirProyecto(slug), 'entregas', entrega, 'graficos')
+  const salida = {}
+  for (const [k, v] of Object.entries(g.datos || {})) {
+    salida[k] = (typeof v === 'string' && /\.(jpe?g|png|webp|gif|svg|mp4|webm|woff2?|ttf|otf)$/i.test(v))
+      ? 'file:///' + path.join(dir, path.basename(v)).replace(/\\/g, '/').replace(/^\//, '')
+      : v
+  }
+  return salida
+}
+
 /** Los recursos que faltan. Un grafico al que le falta su imagen no se genera. */
 export function faltanRecursos (slug, entrega, g) {
   return recursosDe(slug, entrega, g).filter(f => !fs.existsSync(f))
@@ -195,7 +214,7 @@ export async function generar (slug, entrega, g, { forzar = false, alAvanzar } =
   const duracion = g.out - g.in
   const { capturado } = await capturar(html, {
     ancho: g.ancho, alto: g.alto, duracion,
-    datos: g.datos || {}, salidaDir: dir, alAvanzar
+    datos: datosResueltos(slug, entrega, g), salidaDir: dir, alAvanzar
   })
   await empaquetar(dir, destino, { capturado, duracion })
   fs.rmSync(dir, { recursive: true, force: true })
@@ -215,7 +234,7 @@ export async function previsualizar (slug, entrega, g, { fuente, tFuente, tAnim,
   const dentro = Math.max(0, Math.min(Number(tAnim) || 0, g.out - g.in))
   await capturar(html, {
     ancho: g.ancho, alto: g.alto, duracion: 0, instante: dentro,
-    datos: g.datos || {}, salidaDir: dir
+    datos: datosResueltos(slug, entrega, g), salidaDir: dir
   })
   const capa = path.join(dir, 'f00000.png')
 
