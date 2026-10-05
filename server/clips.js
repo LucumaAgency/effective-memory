@@ -105,6 +105,8 @@ export function construirFiltro (plan, clip, ramas = null) {
   }
 
   if (disposicion === 'recorte') {
+    const encuadre = clip.encuadre || plan.encuadre
+    if (encuadre) return `[${r(0) || '0:v'}]${filtroEncuadre(encuadre, clip, ancho, alto)}[v]`
     const quien = clip.persona ?? 0
     const p = personas[quien] || personas[0]
     return `[${r(0) || '0:v'}]${recorteDe(p)},` +
@@ -116,6 +118,68 @@ export function construirFiltro (plan, clip, ramas = null) {
     `[${ramas ? r(i) : `s${i}`}]${recorteDe(p)},` +
     `scale=${ancho}:${mitad}:force_original_aspect_ratio=increase,crop=${ancho}:${mitad}[p${i}]`)]
   return `${partes.join(';')};[p0][p1]vstack=inputs=2[v]`
+}
+
+/**
+ * Encuadre dinamico para una camara unica que se mueve (un recorrido, no una
+ * videollamada): la ventana 9:16 SIGUE a quien habla y hace un zoom suave en
+ * los momentos de enfasis. Todo en coordenadas del original, como siempre.
+ *
+ *   "encuadre": {
+ *     "zoom": 1.18,                 // base: >1 recorta bordes (p.ej. rotulos quemados abajo)
+ *     "anclaY": 0,                  // 0 = arriba fijo, 0.5 = centro, 1 = abajo
+ *     "centros": [ { "t": 931.2, "x": 1150 }, { "t": 940, "x": 640 } ],   // x del sujeto en px del original
+ *     "enfasis": [ { "in": 962.3, "out": 964.6, "zoom": 1.08, "rampa": 0.5 } ]
+ *   }
+ *
+ * Entre dos centros se interpola linealmente (un paneo); dos centros a menos
+ * de 0.15 s equivalen a un corte. El enfasis multiplica el zoom base y entra y
+ * sale con una rampa, para que no se note como un salto.
+ *
+ * Implementacion: scale con eval=frame reescala el fotograma entero al factor
+ * del momento y un crop fijo de ancho x alto recorta donde toca. Los anchos de
+ * crop no admiten expresiones por fotograma, los de scale y las posiciones si.
+ */
+function filtroEncuadre (enc, clip, ancho, alto) {
+  const n = (v) => Number(v).toFixed(3)
+  const t0 = clip.in
+  const zoomBase = Number(enc.zoom) || 1
+  const rampa = (x) => Math.max(0.05, Number(x?.rampa ?? enc.rampa ?? 0.5))
+
+  // Z(t): zoom base por los enfasis activos
+  const partesZ = (enc.enfasis || [])
+    .filter(e => e.out > e.in)
+    .map(e => {
+      const a = n(e.in - t0); const b = n(e.out - t0); const k = n((Number(e.zoom) || 1.08) - 1); const rp = n(rampa(e))
+      return `${k}*clip((t-${a})/${rp},0,1)*clip((${b}-t)/${rp},0,1)`
+    })
+  const Z = `(${n(zoomBase)}*(1+${partesZ.length ? partesZ.join('+') : '0'}))`
+
+  // CX(t): centro horizontal interpolado entre los puntos dados
+  const centros = [...(enc.centros || [])]
+    .map(c => ({ t: Number(c.t) - t0, x: Number(c.x) }))
+    .filter(c => Number.isFinite(c.t) && Number.isFinite(c.x))
+    .sort((a, b) => a.t - b.t)
+  let CX
+  if (!centros.length) CX = 'iw/2'
+  else {
+    const interp = (i) => {
+      if (i >= centros.length - 1) return n(centros[i].x)
+      const a = centros[i]; const b = centros[i + 1]
+      const tramo = Math.max(0.001, b.t - a.t)
+      const lineal = `(${n(a.x)}+(${n(b.x - a.x)})*clip((t-${n(a.t)})/${n(tramo)},0,1))`
+      return `if(lt(t,${n(b.t)}),${lineal},${interp(i + 1)})`
+    }
+    CX = interp(0)
+  }
+  const anclaY = Math.min(1, Math.max(0, Number(enc.anclaY ?? 0.5)))
+
+  // S = factor de escala del fotograma completo: la altura escalada es alto*Z.
+  // Tras el scale, iw e ih ya son las dimensiones escaladas.
+  return `scale=w='iw*${alto}*${Z}/ih':h='${alto}*${Z}':eval=frame:flags=bicubic,` +
+    `crop=${ancho}:${alto}:` +
+    `x='clip((${CX})*(${alto}*${Z}/${n(enc.altoOriginal || 1080)})-${ancho / 2},0,iw-${ancho})':` +
+    `y='clip((ih-${alto})*${n(anclaY)},0,ih-${alto})'`
 }
 
 const claveDe = (entrega, id) => `${entrega}__${id}`
@@ -178,6 +242,8 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega, avisa
   const dir = dirClips(slug)
   fs.mkdirSync(dir, { recursive: true })
   const { ancho = 1080, alto = 1920 } = plan.formato || {}
+  // El encuadre dinamico necesita la altura del original para convertir px.
+  for (const e of [clip.encuadre, plan.encuadre]) if (e && !e.altoOriginal) e.altoOriginal = meta.alto
 
   // .ass propio del clip, con los tiempos rebasados a su inicio
   const clave = claveDe(entrega, clip.id)

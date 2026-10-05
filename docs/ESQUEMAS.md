@@ -94,6 +94,30 @@ la app los rebasa sola al renderizar cada clip.
   a pantalla completa, eligiendo cuál con `"persona": 0|1` en el clip).
 - `correcciones` son pares `[patrón, reemplazo]` que se aplican al texto del subtítulo.
 
+### Encuadre dinámico (`disposicion: "recorte"` + `encuadre`)
+
+Para una sola cámara que se mueve (un recorrido), donde la ventana 9:16 tiene que
+**seguir a quien habla** y hacer un **zoom suave de énfasis**:
+
+```json
+{ "id": "c02", "in": 931.2, "out": 990.6, "disposicion": "recorte",
+  "encuadre": {
+    "zoom": 1.18,
+    "anclaY": 0,
+    "centros": [ { "t": 931.2, "x": 1150 }, { "t": 940, "x": 640 } ],
+    "enfasis": [ { "in": 962.3, "out": 964.6, "zoom": 1.08, "rampa": 0.5 } ]
+  } }
+```
+
+- `zoom` base: con 1.18 se pierde un 15 % por abajo, que es donde suelen ir los rótulos
+  quemados del original.
+- `anclaY`: qué parte de la altura se conserva. 0 fija el borde superior (cabezas), 1 el inferior.
+- `centros`: x del sujeto en píxeles del original en cada instante; entre dos puntos se hace un
+  paneo lineal. Dos puntos a menos de 0.2 s equivalen a un corte.
+- `enfasis`: multiplica el zoom base en esa ventana, entrando y saliendo en `rampa` segundos.
+
+Todo en coordenadas del **original**. `encuadre` puede ir en la raíz del plan o por clip.
+
 ## correcciones.json  (raíz del proyecto)
 
 Nombres propios y términos que el reconocimiento de voz no puede acertar. Se escriben una
