@@ -118,6 +118,14 @@ Para una sola cámara que se mueve (un recorrido), donde la ventana 9:16 tiene q
 
 Todo en coordenadas del **original**. `encuadre` puede ir en la raíz del plan o por clip.
 
+Por dentro es un `crop` de tamaño fijo cuya `x` sigue al sujeto, seguido de `zoompan`, que hace el
+zoom y escala a la salida. La primera versión usaba `scale` con `eval=frame` y un tamaño distinto
+por fotograma; en algunas versiones de ffmpeg eso se traducía en un clip que se volvía negro al
+segundo. Ningún filtro cambia de tamaño entre fotogramas ahora.
+
+Los gráficos WebM se decodifican con `libvpx-vp9` de forma explícita: el decodificador vp9
+nativo de ffmpeg ignora el canal alfa y lo transparente salía negro.
+
 ## correcciones.json  (raíz del proyecto)
 
 Nombres propios y términos que el reconocimiento de voz no puede acertar. Se escriben una

@@ -136,26 +136,29 @@ export function construirFiltro (plan, clip, ramas = null) {
  * de 0.15 s equivalen a un corte. El enfasis multiplica el zoom base y entra y
  * sale con una rampa, para que no se note como un salto.
  *
- * Implementacion: scale con eval=frame reescala el fotograma entero al factor
- * del momento y un crop fijo de ancho x alto recorta donde toca. Los anchos de
- * crop no admiten expresiones por fotograma, los de scale y las posiciones si.
+ * Implementacion: crop de tamaño fijo (sigue al sujeto) + zoompan (zoom y
+ * escalado a la salida). Ver el comentario dentro de la funcion.
  */
 function filtroEncuadre (enc, clip, ancho, alto) {
   const n = (v) => Number(v).toFixed(3)
   const t0 = clip.in
   const zoomBase = Number(enc.zoom) || 1
   const rampa = (x) => Math.max(0.05, Number(x?.rampa ?? enc.rampa ?? 0.5))
+  const altoOrig = Number(enc.altoOriginal) || 1080
+  const fps = Number(enc.fpsOriginal) || 30
+  // zoompan no conoce t: lo deriva del numero de fotograma de entrada.
+  const T = `(in/${n(fps)})`
 
-  // Z(t): zoom base por los enfasis activos
+  // Z: zoom base por los enfasis activos, con rampa de entrada y salida
   const partesZ = (enc.enfasis || [])
     .filter(e => e.out > e.in)
     .map(e => {
       const a = n(e.in - t0); const b = n(e.out - t0); const k = n((Number(e.zoom) || 1.08) - 1); const rp = n(rampa(e))
-      return `${k}*clip((t-${a})/${rp},0,1)*clip((${b}-t)/${rp},0,1)`
+      return `${k}*clip((${T}-${a})/${rp},0,1)*clip((${b}-${T})/${rp},0,1)`
     })
   const Z = `(${n(zoomBase)}*(1+${partesZ.length ? partesZ.join('+') : '0'}))`
 
-  // CX(t): centro horizontal interpolado entre los puntos dados
+  // CX(t): centro horizontal interpolado entre los puntos dados (crop si conoce t)
   const centros = [...(enc.centros || [])]
     .map(c => ({ t: Number(c.t) - t0, x: Number(c.x) }))
     .filter(c => Number.isFinite(c.t) && Number.isFinite(c.x))
@@ -174,12 +177,14 @@ function filtroEncuadre (enc, clip, ancho, alto) {
   }
   const anclaY = Math.min(1, Math.max(0, Number(enc.anclaY ?? 0.5)))
 
-  // S = factor de escala del fotograma completo: la altura escalada es alto*Z.
-  // Tras el scale, iw e ih ya son las dimensiones escaladas.
-  return `scale=w='iw*${alto}*${Z}/ih':h='${alto}*${Z}':eval=frame:flags=bicubic,` +
-    `crop=${ancho}:${alto}:` +
-    `x='clip((${CX})*(${alto}*${Z}/${n(enc.altoOriginal || 1080)})-${ancho / 2},0,iw-${ancho})':` +
-    `y='clip((ih-${alto})*${n(anclaY)},0,ih-${alto})'`
+  // 1) crop de tamaño FIJO con la proporcion de salida, cuya x sigue al sujeto.
+  // 2) zoompan hace el zoom dentro de esa ventana y escala a la salida.
+  // Ningun filtro cambia de tamaño entre fotogramas: eso es lo que rompia en
+  // algunas versiones de ffmpeg (scale eval=frame seguido de crop).
+  const w9 = par(altoOrig * ancho / alto)
+  return `crop=${w9}:${par(altoOrig)}:x='clip((${CX})-${w9 / 2},0,iw-${w9})':y=0,` +
+    `zoompan=z='${Z}':x='iw/2-iw/zoom/2':y='(ih-ih/zoom)*${n(anclaY)}':` +
+    `d=1:s=${ancho}x${alto}:fps=${n(fps)}`
 }
 
 const claveDe = (entrega, id) => `${entrega}__${id}`
@@ -243,7 +248,10 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega, avisa
   fs.mkdirSync(dir, { recursive: true })
   const { ancho = 1080, alto = 1920 } = plan.formato || {}
   // El encuadre dinamico necesita la altura del original para convertir px.
-  for (const e of [clip.encuadre, plan.encuadre]) if (e && !e.altoOriginal) e.altoOriginal = meta.alto
+  for (const e of [clip.encuadre, plan.encuadre]) {
+    if (e && !e.altoOriginal) e.altoOriginal = meta.alto
+    if (e && !e.fpsOriginal) e.fpsOriginal = meta.fps
+  }
 
   // .ass propio del clip, con los tiempos rebasados a su inicio
   const clave = claveDe(entrega, clip.id)
@@ -301,7 +309,9 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega, avisa
     }
     const webm = await generarGrafico(slug, entrega, g,
       { alAvanzar: (pc) => avisar(`gráfico ${g.id}`, pc) })
-    entradas.push('-i', webm)
+    // El decodificador vp9 nativo ignora el canal alfa (lo transparente sale
+    // negro); libvpx-vp9 si lo lee. Va antes de su -i porque es opcion de entrada.
+    entradas.push('-c:v', 'libvpx-vp9', '-i', webm)
     n++
     const desde = +(g.in - clip.in).toFixed(3)
     const hasta = +(g.out - clip.in).toFixed(3)
