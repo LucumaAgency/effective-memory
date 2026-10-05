@@ -185,6 +185,7 @@ export function faltanRecursos (slug, entrega, g) {
 function huella (slug, entrega, g) {
   const html = htmlDe(slug, entrega, g)
   const partes = [
+    'captura-v2',   // subir cuando cambie la forma de capturar: invalida los WebM viejos
     fs.existsSync(html) ? String(fs.statSync(html).mtimeMs) : 'sin-html',
     JSON.stringify(g.datos || {}),
     `${g.ancho}x${g.alto}`,
