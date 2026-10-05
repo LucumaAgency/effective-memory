@@ -10,8 +10,10 @@
     archivo    nombre del archivo, en esta misma carpeta   (obligatorio)
     duracion   segundos que dura el plano                  (obligatorio)
     direccion  "izquierda-derecha" (por defecto) o "derecha-izquierda"
-    recorrido  cuanto se desplaza, en % del ancho del cuadro. 12 por defecto
+    recorrido  cuanto se desplaza, en % del ancho del cuadro. 8 por defecto
     zoom       ampliacion extra, 1.0 = solo lo necesario para el paneo
+    foco       punto de la imagen que se mantiene centrado al recortar, en % del
+               ancho de la foto (50 = centro). Para un sujeto a la derecha, 70.
     entrada    segundos de fundido al entrar y al salir. 0.35 por defecto
     credito    texto pequeno abajo a la izquierda, opcional
 -->
@@ -26,12 +28,14 @@
     animation-delay: 0s, calc(var(--dur) - var(--fundido));
   }
 
-  /* Ancho extra para que quede recorrido a los lados sin descubrir bordes. */
+  /* La foto cubre el cuadro (cover) recortando alrededor del punto de foco, y se
+     amplia solo lo justo para que el paneo no descubra bordes. */
   .marco img {
-    position: absolute; top: 50%; left: 50%;
-    height: 100%; width: auto; min-width: 100%;
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
     object-fit: cover;
-    transform: translate(-50%, -50%) scale(var(--zoom)) translateX(var(--desde));
+    object-position: var(--foco) 50%;
+    transform: scale(var(--zoom)) translateX(var(--desde));
     animation: panear var(--dur) linear forwards;
   }
 
@@ -43,7 +47,7 @@
   }
 
   @keyframes panear {
-    to { transform: translate(-50%, -50%) scale(var(--zoom)) translateX(var(--hasta)); }
+    to { transform: scale(var(--zoom)) translateX(var(--hasta)); }
   }
   @keyframes entrar { from { opacity: 0 } to { opacity: 1 } }
   @keyframes salir  { to { opacity: 0 } }
@@ -57,7 +61,8 @@
 <script>
   const d = window.DATOS || {}
   const dur = Number(d.duracion) || 5
-  const recorrido = Number(d.recorrido ?? 12)
+  const recorrido = Number(d.recorrido ?? 8)
+  const foco = Math.min(100, Math.max(0, Number(d.foco ?? 50)))
   const zoom = Number(d.zoom ?? 1) * (1 + recorrido / 100)
   const fundido = Number(d.entrada ?? 0.35)
   const haciaLaDerecha = (d.direccion || 'izquierda-derecha') === 'izquierda-derecha'
@@ -70,6 +75,7 @@
   raiz.setProperty('--zoom', zoom)
   raiz.setProperty('--desde', desde + '%')
   raiz.setProperty('--hasta', -desde + '%')
+  raiz.setProperty('--foco', foco + '%')
 
   const foto = document.getElementById('foto')
   // Si la imagen no esta, no dejamos un plano en blanco encima del video.
