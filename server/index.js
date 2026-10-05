@@ -84,6 +84,9 @@ function servirVideo (req, res, archivo) {
   const total = st.size
   const tipo = { '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.mkv': 'video/x-matroska' }[path.extname(archivo).toLowerCase()] || 'video/mp4'
   const rango = req.headers.range
+  // Los renders se sobreescriben con el mismo nombre: que el navegador no los cachee.
+  res.setHeader('Cache-Control', 'no-store')
+  res.setHeader('Last-Modified', st.mtime.toUTCString())
 
   if (!rango) {
     res.writeHead(200, { 'Content-Length': total, 'Content-Type': tipo, 'Accept-Ranges': 'bytes' })
