@@ -94,6 +94,16 @@ la app los rebasa sola al renderizar cada clip.
   a pantalla completa, eligiendo cuál con `"persona": 0|1` en el clip).
 - `correcciones` son pares `[patrón, reemplazo]` que se aplican al texto del subtítulo.
 
+### `congelar`: terminar la frase sin que entre la escena siguiente
+
+```json
+{ "id": "c01", "in": 97.45, "out": 129.87, "congelar": 129.55 }
+```
+
+Desde `congelar` hasta `out` la imagen se queda en el último fotograma previo y el audio sigue.
+Para cuando el cambio de plano cae unas décimas antes de que termine la palabra: sin esto, o se
+corta la palabra o se cuela la escena siguiente.
+
 ### Encuadre dinámico (`disposicion: "recorte"` + `encuadre`)
 
 Para una sola cámara que se mueve (un recorrido), donde la ventana 9:16 tiene que

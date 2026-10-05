@@ -323,6 +323,20 @@ async function renderizarUno (slug, plan, clip, transcript, meta, entrega, avisa
     ultima = `vg${n}`
   }
 
+  // "congelar": desde ese segundo (del original) hasta el final del clip la
+  // imagen se queda quieta en el ultimo fotograma previo, pero el audio sigue.
+  // Sirve cuando la frase termina unas decimas DESPUES del cambio de plano: sin
+  // esto, o se corta la palabra o se cuela la escena siguiente.
+  const congelar = Number(clip.congelar)
+  if (Number.isFinite(congelar) && congelar > clip.in && congelar < clip.out) {
+    const fps = Number(meta.fps) || 30
+    const primero = Math.max(1, Math.round((congelar - clip.in) * fps))
+    const ultimo = Math.round((clip.out - clip.in) * fps) + 2
+    // freezeframes toma dos entradas: el flujo a congelar y el de donde saca el fotograma.
+    cadena += `;[${ultima}]split=2[cg0][cg1];[cg0][cg1]freezeframes=first=${primero}:last=${ultimo}:replace=${primero - 1}[vcg]`
+    ultima = 'vcg'
+  }
+
   cadena += conSubtitulos ? `;[${ultima}]ass=${clave}.ass[vout]` : `;[${ultima}]copy[vout]`
 
   const args = [
