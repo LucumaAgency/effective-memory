@@ -406,6 +406,22 @@ encuadre base y los insertos juntos, y cada filtro recibe las suyas. Lo mismo ap
 `[dividido]`: la salida de un filtro se consume una vez, así que con varias ventanas hay que
 duplicarlo con `split`.
 
+## B-roll desde Pixabay
+
+`scripts/buscar_broll.py` busca y descarga fotos de Pixabay (uso comercial, sin atribución)
+directamente en la carpeta `graficos/` de una entrega, y apunta fuente y autor en
+`broll-fuentes.json`. La clave va en `PIXABAY_API_KEY` (variable de entorno o `.env`), nunca en el repo.
+
+```
+python scripts/buscar_broll.py --destino <datos>/proyectos/<slug>/entregas/v1/graficos \
+  --candidatas 4 --plano 01-ciudad "city aerial night" --plano 02-llaves "house keys"
+python scripts/buscar_broll.py --destino ... --elegir 01-ciudad=2 --plano 01-ciudad "city aerial night"
+```
+
+`--candidatas N` deja N miniaturas por plano en `_candidatas/` para elegir a ojo (borrar antes
+de hacer commit); `--elegir nombre=indice` baja otra de la lista. Cada foto se monta luego con
+`pan.html` en `graficos.json`. Es stock genérico: sirve para conceptos, no para "este edificio".
+
 ## Plantillas de gráfico
 
 `plantillas/` en el repo de la app guarda los patrones que ya se repiten: `pan.html` (imagen con
