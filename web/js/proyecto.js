@@ -492,7 +492,7 @@ async function montarVivo (hueco, entrega, clip, graficos) {
   const src = renderizado
     // &v= con el peso y la fecha del archivo: si no, el navegador sigue mostrando
     // el render anterior aunque el MP4 en disco ya sea otro.
-    ? `/api/proyectos/${encodeURIComponent(slug)}/clips/video?archivo=${encodeURIComponent(clave + '.mp4')}&v=${hechos.get(clave)?.bytes || 0}-${Date.now()}`
+    ? `/api/proyectos/${encodeURIComponent(slug)}/clips/video?archivo=${encodeURIComponent(clave + '.mp4')}&v=${Date.now()}`
     : `/api/proyectos/${encodeURIComponent(slug)}/video`
 
   hueco.innerHTML = ''
