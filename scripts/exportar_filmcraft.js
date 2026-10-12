@@ -298,7 +298,7 @@ Generado por \`scripts/exportar_filmcraft.js\` el ${new Date().toISOString().sli
 
 - **${path.basename(proyecto)}**: abrir en FilmCraft. Una secuencia por clip (${W}x${H}, ${fps} fps).
   El video apunta a \`${meta.videoPath}\`; los b-roll a \`${pcBase}\\${slug}\\...\`.
-  Si FilmCraft los marca offline, cerrar FilmCraft y ejecutar enlazar.ps1; fuerza el enlace aunque la duración difiera y guarda `<slug>-<entrega>-pc.fcproj` (ignorado por git). Trabajar siempre sobre el -pc.
+  Si FilmCraft los marca offline, cerrar FilmCraft y ejecutar enlazar.ps1; fuerza el enlace aunque la duración difiera y guarda una copia -pc.fcproj (ignorada por git). Trabajar siempre sobre el -pc.
 - **cNN.otio / cNN.fcpxml**: el mismo timeline para Resolve, Premiere o cualquier NLE.
 - **cNN.srt**: subtítulos del clip (tiempos desde 0 = inicio del clip).
 - Pista V1: el original recortado a 9:16 con el encuadre dinámico traducido a Motion (escala + posición con keyframes).
