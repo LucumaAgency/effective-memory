@@ -190,6 +190,7 @@ for (const clip of plan.clips || []) {
   c('timeline.place', { item: ITEM_VIDEO, track: 'V1', audioTrack: 'A1', seconds: 0, insert: false, sourceIn: t(clip.in), duration: t(dur) })
   const m = motionDe(enc, clip)
   const primero = m.frames[0]
+  c('effects.setParam', { clip: '$ultimo', effect: 'motion', param: 'anchor', value: [srcW / 2, srcH / 2] })
   c('effects.setParam', { clip: '$ultimo', effect: 'motion', param: 'scale', value: primero.scale })
   c('effects.setParam', { clip: '$ultimo', effect: 'motion', param: 'position', value: primero.pos })
   if (m.animado) {
@@ -219,14 +220,16 @@ for (const clip of plan.clips || []) {
       c('timeline.place', { item: '$ultimoItem', track: 'V2', seconds: g.in - clip.in, insert: false, duration: t(gdur), audio: false })
       if (g.archivo === 'pan.html' || !g.archivo) {
         const mb = motionBroll(g.datos || {}, tam.w, tam.h, gdur)
+        const t0 = g.in - clip.in   // los keyframes van en tiempo de SECUENCIA
+        c('effects.setParam', { clip: '$ultimoV2', effect: 'motion', param: 'anchor', value: [tam.w / 2, tam.h / 2] })
         c('effects.setParam', { clip: '$ultimoV2', effect: 'motion', param: 'scale', value: mb.scale })
-        c('effects.setParam', { clip: '$ultimoV2', effect: 'motion', param: 'position', value: mb.ini, time: 0, keyframe: true })
-        c('effects.setParam', { clip: '$ultimoV2', effect: 'motion', param: 'position', value: mb.fin, time: t(gdur), keyframe: true })
+        c('effects.setParam', { clip: '$ultimoV2', effect: 'motion', param: 'position', value: mb.ini, time: t(t0), keyframe: true })
+        c('effects.setParam', { clip: '$ultimoV2', effect: 'motion', param: 'position', value: mb.fin, time: t(t0 + gdur), keyframe: true })
         if (mb.fundido > 0) {
-          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 0, time: 0, keyframe: true })
-          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 100, time: t(mb.fundido), keyframe: true })
-          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 100, time: t(gdur - mb.fundido), keyframe: true })
-          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 0, time: t(gdur), keyframe: true })
+          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 0, time: t(t0), keyframe: true })
+          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 100, time: t(t0 + mb.fundido), keyframe: true })
+          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 100, time: t(t0 + gdur - mb.fundido), keyframe: true })
+          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 0, time: t(t0 + gdur), keyframe: true })
         }
       }
     }
