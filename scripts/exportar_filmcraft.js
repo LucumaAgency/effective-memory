@@ -198,6 +198,7 @@ const resolver = (v) => {
   return v
 }
 const lineas = []
+const medios = []
 let fallos = 0
 // Primera pasada: creamos el proyecto con el primer comando y guardamos; luego acumulamos.
 for (let i = 0; i < cmds.length; i++) {
@@ -212,16 +213,11 @@ for (let i = 0; i < cmds.length; i++) {
   lineas.push(`${ok ? 'ok ' : 'ERR'} ${id} ${JSON.stringify(p).slice(0, 140)} -> ${out.slice(0, 160)}${r.stderr ? ' | ' + r.stderr.trim().slice(0, 200) : ''}`)
   if (!ok) { fallos++; continue }
   const d = (res && res.result) || res || {}
-  if (id === 'file.newOfflineFile') { ctx.ultimoItem = d.item; if (!ctx.video) ctx.video = d.item }
+  if (id === 'file.newOfflineFile') { ctx.ultimoItem = d.item; if (!ctx.video) ctx.video = d.item; medios.push({ item: d.item, ruta: p.fileName }) }
   if (id === 'timeline.place' && p.track === 'V1') ctx.ultimoClip = d.clips?.[0]
 }
 // Script de enlace para la PC: FilmCraft rechaza en el dialogo un archivo cuya duracion no
 // coincide con la del offline (ffmpeg y FilmCraft miden distinto); media.relink con force si lo acepta.
-const medios = []
-for (const l of lineas) {
-  const m = l.match(/^ok  file\.newOfflineFile .*"fileName":"((?:[^"\\]|\\.)*)".*-> \{"item":(\d+)/)
-  if (m) medios.push({ item: +m[2], ruta: JSON.parse('"' + m[1] + '"') })
-}
 const ps1 = [
   '# Enlaza los medios del proyecto FilmCraft forzando la coincidencia. Ejecutar en PowerShell',
   '# con FilmCraft CERRADO (la CLI escribe el .fcproj).',
