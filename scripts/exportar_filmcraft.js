@@ -235,7 +235,7 @@ for (const clip of plan.clips || []) {
     }
     // Gráficos HTML capturados con scripts/capturar_graficos.py --webm (VP9 con alfa) -> V3
     const webm = path.join(salida, 'graficos', `${g.id}.webm`)
-    if (String(g.archivo || '').endsWith('.html') && fs.existsSync(webm)) {
+    if (String(g.archivo || '').endsWith('.html') && !archivo && fs.existsSync(webm)) {
       const ruta = `${pcBase}\\${slug}\\entregas\\${entrega}\\filmcraft\\graficos\\${g.id}.webm`
       c('file.newOfflineFile', { name: `${g.id} ${g.archivo}`, fileName: ruta, audio: false, width: g.ancho || W, height: g.alto || H, fps, seconds: gdur })
       c('timeline.place', { item: '$ultimoItem', track: 'V3', seconds: g.in - clip.in, insert: false, duration: t(gdur), audio: false })

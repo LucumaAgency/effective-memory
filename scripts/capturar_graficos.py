@@ -58,6 +58,8 @@ with sync_playwright() as pw:
     for g in gj['graficos']:
         if a.ids and g['id'] not in a.ids: continue
         if not str(g.get('archivo', '')).endswith('.html'): continue
+        # pan.html sobre una foto: FilmCraft lo reproduce nativamente (V2 con escala y paneo)
+        if g.get('archivo') == 'pan.html' and (g.get('datos') or {}).get('archivo'): continue
         dur = g['out'] - g['in']
         datos = dict(g.get('datos', {})); datos.setdefault('duracion', round(dur, 3))
         gw, gh = g.get('ancho', W), g.get('alto', H)
