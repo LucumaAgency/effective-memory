@@ -218,12 +218,16 @@ for (let i = 0; i < cmds.length; i++) {
 }
 // Script de enlace para la PC: FilmCraft rechaza en el dialogo un archivo cuya duracion no
 // coincide con la del offline (ffmpeg y FilmCraft miden distinto); media.relink con force si lo acepta.
+// PowerShell 5 rompe el JSON en linea al llamar a un .exe: los comandos van en un .jsonl.
+fs.writeFileSync(path.join(salida, 'enlazar.jsonl'), medios.map(m =>
+  JSON.stringify({ id: 'media.relink', params: { item: m.item, path: m.ruta, force: true, relinkOthers: false } })).join('\n') + '\n')
 const ps1 = [
   '# Enlaza los medios del proyecto FilmCraft forzando la coincidencia. Ejecutar en PowerShell',
   '# con FilmCraft CERRADO (la CLI escribe el .fcproj).',
   '$cli = "C:\\Program Files\\FilmCraft\\filmcraft-cli.exe"',
   '$proy = Join-Path $PSScriptRoot "' + path.basename(proyecto) + '"',
-  ...medios.map(m => `& $cli --project $proy --save exec media.relink '${JSON.stringify({ item: m.item, path: m.ruta, force: true, relinkOthers: false })}'`),
+  '$cmds = Join-Path $PSScriptRoot "enlazar.jsonl"',
+  '& $cli --project $proy --save run $cmds',
   'Write-Host "Listo: abre $proy en FilmCraft"'
 ].join('\r\n') + '\r\n'
 fs.writeFileSync(path.join(salida, 'enlazar.ps1'), ps1)
