@@ -284,9 +284,11 @@ const ps1 = [
   '# con FilmCraft CERRADO (la CLI escribe el .fcproj).',
   '$cli = "C:\\Program Files\\FilmCraft\\filmcraft-cli.exe"',
   '$proy = Join-Path $PSScriptRoot "' + path.basename(proyecto) + '"',
+  '$pc = $proy -replace "\\.fcproj$", "-pc.fcproj"',
   '$cmds = Join-Path $PSScriptRoot "enlazar.jsonl"',
-  '& $cli --project $proy --save run $cmds',
-  'Write-Host "Listo: abre $proy en FilmCraft"'
+  '# Se guarda como *-pc.fcproj (ignorado por git) para que git pull nunca choque con el original.',
+  '& $cli --project $proy --save-as $pc run $cmds',
+  'Write-Host "Listo: abre $pc en FilmCraft"'
 ].join('\r\n') + '\r\n'
 fs.writeFileSync(path.join(salida, 'enlazar.ps1'), ps1)
 fs.writeFileSync(path.join(salida, 'registro.txt'), lineas.join('\n') + '\n')
@@ -296,7 +298,7 @@ Generado por \`scripts/exportar_filmcraft.js\` el ${new Date().toISOString().sli
 
 - **${path.basename(proyecto)}**: abrir en FilmCraft. Una secuencia por clip (${W}x${H}, ${fps} fps).
   El video apunta a \`${meta.videoPath}\`; los b-roll a \`${pcBase}\\${slug}\\...\`.
-  Si FilmCraft los marca offline, cerrar FilmCraft y ejecutar enlazar.ps1 (clic derecho > Ejecutar con PowerShell); fuerza el enlace aunque la duración difiera.
+  Si FilmCraft los marca offline, cerrar FilmCraft y ejecutar enlazar.ps1; fuerza el enlace aunque la duración difiera y guarda `<slug>-<entrega>-pc.fcproj` (ignorado por git). Trabajar siempre sobre el -pc.
 - **cNN.otio / cNN.fcpxml**: el mismo timeline para Resolve, Premiere o cualquier NLE.
 - **cNN.srt**: subtítulos del clip (tiempos desde 0 = inicio del clip).
 - Pista V1: el original recortado a 9:16 con el encuadre dinámico traducido a Motion (escala + posición con keyframes).
