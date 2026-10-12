@@ -215,6 +215,22 @@ for (let i = 0; i < cmds.length; i++) {
   if (id === 'file.newOfflineFile') { ctx.ultimoItem = d.item; if (!ctx.video) ctx.video = d.item }
   if (id === 'timeline.place' && p.track === 'V1') ctx.ultimoClip = d.clips?.[0]
 }
+// Script de enlace para la PC: FilmCraft rechaza en el dialogo un archivo cuya duracion no
+// coincide con la del offline (ffmpeg y FilmCraft miden distinto); media.relink con force si lo acepta.
+const medios = []
+for (const l of lineas) {
+  const m = l.match(/^ok  file\.newOfflineFile .*"fileName":"((?:[^"\\]|\\.)*)".*-> \{"item":(\d+)/)
+  if (m) medios.push({ item: +m[2], ruta: JSON.parse('"' + m[1] + '"') })
+}
+const ps1 = [
+  '# Enlaza los medios del proyecto FilmCraft forzando la coincidencia. Ejecutar en PowerShell',
+  '# con FilmCraft CERRADO (la CLI escribe el .fcproj).',
+  '$cli = "C:\\Program Files\\FilmCraft\\filmcraft-cli.exe"',
+  '$proy = Join-Path $PSScriptRoot "' + path.basename(proyecto) + '"',
+  ...medios.map(m => `& $cli --project $proy --save exec media.relink '${JSON.stringify({ item: m.item, path: m.ruta, force: true, relinkOthers: false })}'`),
+  'Write-Host "Listo: abre $proy en FilmCraft"'
+].join('\r\n') + '\r\n'
+fs.writeFileSync(path.join(salida, 'enlazar.ps1'), ps1)
 fs.writeFileSync(path.join(salida, 'registro.txt'), lineas.join('\n') + '\n')
 fs.writeFileSync(path.join(salida, 'README.md'), `# FilmCraft: ${slug} ${entrega}
 
@@ -222,7 +238,7 @@ Generado por \`scripts/exportar_filmcraft.js\` el ${new Date().toISOString().sli
 
 - **${path.basename(proyecto)}**: abrir en FilmCraft. Una secuencia por clip (${W}x${H}, ${fps} fps).
   El video apunta a \`${meta.videoPath}\`; los b-roll a \`${pcBase}\\${slug}\\...\`.
-  Si FilmCraft los marca offline: clic derecho > Link Media y elegir el archivo.
+  Si FilmCraft los marca offline, cerrar FilmCraft y ejecutar enlazar.ps1 (clic derecho > Ejecutar con PowerShell); fuerza el enlace aunque la duración difiera.
 - **cNN.otio / cNN.fcpxml**: el mismo timeline para Resolve, Premiere o cualquier NLE.
 - **cNN.srt**: subtítulos del clip (tiempos desde 0 = inicio del clip).
 - Pista V1: el original recortado a 9:16 con el encuadre dinámico traducido a Motion (escala + posición con keyframes).
