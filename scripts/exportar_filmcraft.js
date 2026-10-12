@@ -128,6 +128,45 @@ function motionDe (enc, clip) {
   return { animado, frames: lista.map(tt => ({ t: tt - clip.in, ...estado(tt) })) }
 }
 
+
+// Tamaño de una imagen (JPEG/PNG) leyendo la cabecera, sin dependencias.
+function tamanoImagen (f) {
+  const b = fs.readFileSync(f)
+  if (b[0] === 0x89 && b[1] === 0x50) return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) }
+  if (b[0] === 0xFF && b[1] === 0xD8) {
+    let i = 2
+    while (i < b.length) {
+      if (b[i] !== 0xFF) { i++; continue }
+      const m = b[i + 1]
+      if (m >= 0xC0 && m <= 0xCF && ![0xC4, 0xC8, 0xCC].includes(m)) return { h: b.readUInt16BE(i + 5), w: b.readUInt16BE(i + 7) }
+      i += 2 + b.readUInt16BE(i + 2)
+    }
+  }
+  return null
+}
+
+// B-roll con la semantica de plantillas/pan.html: la foto cubre el cuadro (cover) recortando
+// alrededor de `foco`, con un zoom extra de `recorrido` % que se desplaza de un lado al otro
+// durante el clip, y un fundido de `entrada` segundos al entrar y salir.
+function motionBroll (dat, w, h, dur) {
+  const rec = Number(dat.recorrido ?? 8)
+  const foco = Math.min(100, Math.max(0, Number(dat.foco ?? 50)))
+  const z = (Number(dat.zoom) || 1) * (1 + rec / 100)
+  const haciaDer = (dat.direccion || 'izquierda-derecha') === 'izquierda-derecha'
+  const Sc = Math.max(W / w, H / h)
+  const sw = w * Sc, sh = h * Sc
+  const cx = -(sw - W) * foco / 100 + sw / 2
+  const cy = -(sh - H) / 2 + sh / 2
+  const cxz = W / 2 + (cx - W / 2) * z, cyz = H / 2 + (cy - H / 2) * z
+  const desde = (haciaDer ? rec / 2 : -rec / 2) * W / 100
+  return {
+    scale: +(Sc * z * 100).toFixed(3),
+    ini: [+(cxz + desde).toFixed(2), +cyz.toFixed(2)],
+    fin: [+(cxz - desde).toFixed(2), +cyz.toFixed(2)],
+    fundido: Math.min(Number(dat.entrada ?? 0.35), dur / 2)
+  }
+}
+
 // ---------- comandos ----------
 const cmds = []
 const c = (id, params) => cmds.push({ id, params })
@@ -174,8 +213,22 @@ for (const clip of plan.clips || []) {
     const gdur = g.out - g.in
     if (archivo) {
       const ruta = `${pcBase}\\${slug}\\entregas\\${entrega}\\graficos\\${archivo}`
-      c('file.newOfflineFile', { name: `${g.id} ${archivo}`, fileName: ruta, audio: false, width: g.ancho || W, height: g.alto || H, fps, seconds: gdur })
+      const local = path.join(dir, 'entregas', entrega, 'graficos', archivo)
+      const tam = (fs.existsSync(local) && tamanoImagen(local)) || { w: g.ancho || W, h: g.alto || H }
+      c('file.newOfflineFile', { name: `${g.id} ${archivo}`, fileName: ruta, audio: false, width: tam.w, height: tam.h, fps, seconds: gdur })
       c('timeline.place', { item: '$ultimoItem', track: 'V2', seconds: g.in - clip.in, insert: false, duration: t(gdur), audio: false })
+      if (g.archivo === 'pan.html' || !g.archivo) {
+        const mb = motionBroll(g.datos || {}, tam.w, tam.h, gdur)
+        c('effects.setParam', { clip: '$ultimoV2', effect: 'motion', param: 'scale', value: mb.scale })
+        c('effects.setParam', { clip: '$ultimoV2', effect: 'motion', param: 'position', value: mb.ini, time: 0, keyframe: true })
+        c('effects.setParam', { clip: '$ultimoV2', effect: 'motion', param: 'position', value: mb.fin, time: t(gdur), keyframe: true })
+        if (mb.fundido > 0) {
+          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 0, time: 0, keyframe: true })
+          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 100, time: t(mb.fundido), keyframe: true })
+          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 100, time: t(gdur - mb.fundido), keyframe: true })
+          c('effects.setParam', { clip: '$ultimoV2', effect: 'opacity', param: 'opacity', value: 0, time: t(gdur), keyframe: true })
+        }
+      }
     }
     c('markers.add', { seconds: g.in - clip.in, durationSeconds: gdur, name: `${g.id} ${g.archivo || ''} ${archivo || ''}: ${g.describe || ''}`.trim() })
   }
@@ -195,6 +248,7 @@ const resolver = (v) => {
   if (v === '$video') return ctx.video
   if (v === '$ultimo') return ctx.ultimoClip
   if (v === '$ultimoItem') return ctx.ultimoItem
+  if (v === '$ultimoV2') return ctx.ultimoV2
   return v
 }
 const lineas = []
@@ -215,6 +269,7 @@ for (let i = 0; i < cmds.length; i++) {
   const d = (res && res.result) || res || {}
   if (id === 'file.newOfflineFile') { ctx.ultimoItem = d.item; if (!ctx.video) ctx.video = d.item; medios.push({ item: d.item, ruta: p.fileName }) }
   if (id === 'timeline.place' && p.track === 'V1') ctx.ultimoClip = d.clips?.[0]
+  if (id === 'timeline.place' && p.track === 'V2') ctx.ultimoV2 = d.clips?.[0]
 }
 // Script de enlace para la PC: FilmCraft rechaza en el dialogo un archivo cuya duracion no
 // coincide con la del offline (ffmpeg y FilmCraft miden distinto); media.relink con force si lo acepta.
