@@ -186,7 +186,7 @@ for (const clip of plan.clips || []) {
   fs.writeFileSync(srt, srtDeClip(clip))
   const gs = graficos.filter(g => g.clip === clip.id)
 
-  c('file.newSequence', { name: `${clip.id} ${clip.titulo || ''}`.trim(), width: W, height: H, fps, video: 2, audio: 1 })
+  c('file.newSequence', { name: `${clip.id} ${clip.titulo || ''}`.trim(), width: W, height: H, fps, video: 3, audio: 1 })
   c('timeline.place', { item: ITEM_VIDEO, track: 'V1', audioTrack: 'A1', seconds: 0, insert: false, sourceIn: t(clip.in), duration: t(dur) })
   const m = motionDe(enc, clip)
   const primero = m.frames[0]
@@ -233,6 +233,14 @@ for (const clip of plan.clips || []) {
         }
       }
     }
+    // Gráficos HTML capturados con scripts/capturar_graficos.py --webm (VP9 con alfa) -> V3
+    const webm = path.join(salida, 'graficos', `${g.id}.webm`)
+    if (String(g.archivo || '').endsWith('.html') && fs.existsSync(webm)) {
+      const ruta = `${pcBase}\\${slug}\\entregas\\${entrega}\\filmcraft\\graficos\\${g.id}.webm`
+      c('file.newOfflineFile', { name: `${g.id} ${g.archivo}`, fileName: ruta, audio: false, width: g.ancho || W, height: g.alto || H, fps, seconds: gdur })
+      c('timeline.place', { item: '$ultimoItem', track: 'V3', seconds: g.in - clip.in, insert: false, duration: t(gdur), audio: false })
+      if (g.x || g.y) c('effects.setParam', { clip: '$ultimoV3', effect: 'motion', param: 'position', value: [(g.ancho || W) / 2 + (g.x || 0), (g.alto || H) / 2 + (g.y || 0)] })
+    }
     c('markers.add', { seconds: g.in - clip.in, durationSeconds: gdur, name: `${g.id} ${g.archivo || ''} ${archivo || ''}: ${g.describe || ''}`.trim() })
   }
   if (clip.congelar) c('markers.add', { seconds: clip.congelar - clip.in, name: `congelar fotograma (${clip.congelar}s del original)` })
@@ -252,6 +260,7 @@ const resolver = (v) => {
   if (v === '$ultimo') return ctx.ultimoClip
   if (v === '$ultimoItem') return ctx.ultimoItem
   if (v === '$ultimoV2') return ctx.ultimoV2
+  if (v === '$ultimoV3') return ctx.ultimoV3
   return v
 }
 const lineas = []
@@ -273,6 +282,7 @@ for (let i = 0; i < cmds.length; i++) {
   if (id === 'file.newOfflineFile') { ctx.ultimoItem = d.item; if (!ctx.video) ctx.video = d.item; medios.push({ item: d.item, ruta: p.fileName }) }
   if (id === 'timeline.place' && p.track === 'V1') ctx.ultimoClip = d.clips?.[0]
   if (id === 'timeline.place' && p.track === 'V2') ctx.ultimoV2 = d.clips?.[0]
+  if (id === 'timeline.place' && p.track === 'V3') ctx.ultimoV3 = d.clips?.[0]
 }
 // Script de enlace para la PC: FilmCraft rechaza en el dialogo un archivo cuya duracion no
 // coincide con la del offline (ffmpeg y FilmCraft miden distinto); media.relink con force si lo acepta.
@@ -302,7 +312,7 @@ Generado por \`scripts/exportar_filmcraft.js\` el ${new Date().toISOString().sli
 - **cNN.otio / cNN.fcpxml**: el mismo timeline para Resolve, Premiere o cualquier NLE.
 - **cNN.srt**: subtítulos del clip (tiempos desde 0 = inicio del clip).
 - Pista V1: el original recortado a 9:16 con el encuadre dinámico traducido a Motion (escala + posición con keyframes).
-  Pista V2: los b-roll como imágenes. Marcadores: gancho, b-roll y congelado.
+  Pista V2: los b-roll como imágenes. Pista V3: los gráficos HTML como WebM con alfa (graficos/). Marcadores: gancho, b-roll y congelado.
 - Los tiempos del original se recuperan con \`in\` de cada clip en clips.json (clip = original − in).
 
 | clip | título | in | out | dur | b-roll |
