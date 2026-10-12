@@ -334,3 +334,20 @@ viaja: el proyecto apunta a `meta.videoPath` y los b-roll a la copia del repo de
 - `captions.setStyle` devuelve `null` cuando va bien: no tomar `null` como fallo.
 - Pendiente: probar en la PC que FilmCraft 0.6 en Windows abre el `.fcproj` y enlaza el MP4;
   rótulos con EffectCraft (`.ecproj` JSON + Lottie) en vez de HTML capturado.
+
+## 2026-10-11 · Motion graphics estilo "interfaz" + previsualización en el servidor
+
+Referencia: video `ai-editing.mp4` (tarjetas de cristal junto a quien habla, maquetas, comparativas
+con barras, subtítulos con palabra resaltada). Dos plantillas nuevas en `plantillas/`:
+`tarjeta-ui.html` (etiqueta + texto grande + lista opcional línea a línea, `marca` resalta una
+frase) y `comparativa.html` (dos barras que crecen + conclusión). Mismas reglas de siempre: solo
+animaciones CSS, datos en `window.DATOS`, `duracion` obligatoria para que la salida caiga al final.
+
+`scripts/previsualizar.py <proyecto> <entrega> [ids] --instantes 0.4,1.5,3,fin` compone cada
+gráfico sobre el fotograma de muestra más cercano (frames/, cada 10 s) recortado con el encuadre
+real del clip, y deja una hoja de contactos en `entregas/vN/previas/<id>.png`. Corre en el
+servidor Linux (Chrome + Playwright + Montserrat en ~/.fonts): permite iterar con Claude sin
+tocar la PC. Primer uso: c02 de 2026-10-andres2 (t01-t05).
+
+Aprendido: una tarjeta con lista reserva su alto desde el primer fotograma; colocar las tarjetas
+en y≈250-400 (sobre el hombro) y los paneles anchos en y≈1040 (bajo la cara, sobre subtítulos).

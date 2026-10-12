@@ -1,0 +1,106 @@
+<meta charset="utf-8">
+<!--
+  Tarjeta estilo "interfaz": cristal translúcido con etiqueta pequeña arriba, texto grande y,
+  opcionalmente, una lista que aparece línea a línea. Es el patrón de los videos editados con IA
+  (tarjeta que entra deslizándose junto a quien habla).
+
+  Todo lo animado es CSS: el motor fija animation.currentTime y captura.
+
+  window.DATOS:
+    etiqueta   texto pequeño en mayúsculas arriba ("01 · Cuestan menos")      (opcional)
+    texto      el mensaje grande                                              (obligatorio)
+    lineas     ["a", "b", "c"]: aparecen una a una, cada `cadencia` s         (opcional)
+    marca      palabra o frase del texto a resaltar con fondo de acento       (opcional)
+    lado       "izquierda" (defecto) o "derecha": de dónde entra la tarjeta
+    x, y       esquina superior izquierda en px del cuadro 1080x1920 (defecto 60, 420)
+    ancho      ancho de la tarjeta en px (defecto 620)
+    tam        tamaño del texto en px (defecto 54)
+    acento     color de acento (defecto #0F766E)
+    entrada    s de entrada (defecto 0.55); salida: s de salida (defecto 0.4)
+    duracion   duración total en s (obligatorio para que la salida caiga al final)
+    cadencia   s entre líneas de la lista (defecto 0.9)
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
+    font-family: "Montserrat", "Segoe UI", system-ui, sans-serif; }
+
+  .tarjeta {
+    position: absolute; left: var(--x); top: var(--y); width: var(--ancho);
+    box-sizing: border-box; padding: 34px 38px 36px;
+    background: rgba(255, 255, 255, .82);
+    border: 1.5px solid rgba(255, 255, 255, .9);
+    border-radius: 30px;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255,255,255,.9);
+    backdrop-filter: blur(22px) saturate(1.2);
+    -webkit-backdrop-filter: blur(22px) saturate(1.2);
+    opacity: 0; transform: translateX(var(--desde)) scale(.96);
+    animation:
+      entrar var(--entrada) cubic-bezier(.16, 1, .3, 1) forwards,
+      salir var(--salida) ease-in var(--fin) forwards;
+  }
+  .etiqueta {
+    font-size: 21px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--acento); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .etiqueta::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--acento); }
+  .texto { font-size: var(--tam); font-weight: 700; line-height: 1.16; color: #141414;
+    letter-spacing: -.01em; text-wrap: balance; }
+  .texto mark { background: color-mix(in srgb, var(--acento) 22%, transparent);
+    color: inherit; border-radius: 8px; padding: 0 .12em; box-decoration-break: clone; }
+
+  .lineas { margin-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .linea {
+    font-size: calc(var(--tam) * .56); font-weight: 600; color: #2a2a2a; line-height: 1.25;
+    padding: 12px 16px; border-radius: 14px; background: rgba(0, 0, 0, .05);
+    display: flex; gap: 12px; align-items: flex-start;
+    opacity: 0; transform: translateY(14px);
+    animation: aparecer .45s cubic-bezier(.16, 1, .3, 1) forwards; animation-delay: var(--retraso);
+  }
+  .linea::before { content: "✓"; color: var(--acento); font-weight: 800; }
+
+  @keyframes entrar { to { opacity: 1; transform: translateX(0) scale(1) } }
+  @keyframes aparecer { to { opacity: 1; transform: translateY(0) } }
+  @keyframes salir { to { opacity: 0; transform: translateY(-18px) scale(.98) } }
+</style>
+
+<div class="tarjeta" id="tarjeta">
+  <div class="etiqueta" id="etiqueta"></div>
+  <div class="texto" id="texto"></div>
+  <div class="lineas" id="lineas"></div>
+</div>
+
+<script>
+  const d = window.DATOS || {}
+  const r = document.documentElement.style
+  const n = (v, def) => (v === undefined || v === null || v === '') ? def : Number(v)
+  const entrada = n(d.entrada, .55), salida = n(d.salida, .4), dur = n(d.duracion, 6)
+  r.setProperty('--x', n(d.x, 60) + 'px')
+  r.setProperty('--y', n(d.y, 420) + 'px')
+  r.setProperty('--ancho', n(d.ancho, 620) + 'px')
+  r.setProperty('--tam', n(d.tam, 54) + 'px')
+  r.setProperty('--acento', d.acento || '#0F766E')
+  r.setProperty('--entrada', entrada + 's')
+  r.setProperty('--salida', salida + 's')
+  r.setProperty('--fin', Math.max(0, dur - salida) + 's')
+  r.setProperty('--desde', (d.lado === 'derecha' ? 60 : -60) + 'px')
+
+  const et = document.getElementById('etiqueta')
+  if (d.etiqueta) et.textContent = d.etiqueta; else et.remove()
+
+  const tx = document.getElementById('texto')
+  const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+  let html = esc(d.texto || '')
+  if (d.marca) html = html.replace(esc(d.marca), m => `<mark>${m}</mark>`)
+  tx.innerHTML = html.replace(/\n/g, '<br>')
+
+  const ls = document.getElementById('lineas')
+  const lineas = Array.isArray(d.lineas) ? d.lineas : []
+  if (!lineas.length) ls.remove()
+  lineas.forEach((t, i) => {
+    const el = document.createElement('div')
+    el.className = 'linea'; el.textContent = t
+    el.style.setProperty('--retraso', (entrada * .6 + i * n(d.cadencia, .9)) + 's')
+    ls.appendChild(el)
+  })
+</script>

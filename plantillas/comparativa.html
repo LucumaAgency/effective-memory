@@ -1,0 +1,87 @@
+<meta charset="utf-8">
+<!--
+  Comparativa de dos magnitudes con barras que crecen (el "2 min vs 2 hrs" de la referencia).
+  Panel de cristal con título, dos filas (nombre, barra, valor) y una conclusión opcional.
+
+  window.DATOS:
+    etiqueta    texto pequeño arriba                                   (opcional)
+    titulo      título del panel                                       (obligatorio)
+    a, b        { "nombre": "Cuota del crédito", "valor": "S/ 2.800", "peso": 100 }  peso = largo relativo 0-100
+    conclusion  frase final que aparece al terminar las barras         (opcional)
+    x, y, ancho posición y ancho (defecto 60, 760, 960)
+    acento      color de la barra b (defecto #0F766E); la barra a va en gris oscuro
+    duracion    s totales (obligatorio); entrada (defecto .5); salida (defecto .4)
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
+    font-family: "Montserrat", "Segoe UI", system-ui, sans-serif; }
+  .panel {
+    position: absolute; left: var(--x); top: var(--y); width: var(--ancho); box-sizing: border-box;
+    padding: 36px 40px 38px; border-radius: 30px;
+    background: rgba(255, 255, 255, .84); border: 1.5px solid rgba(255, 255, 255, .9);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, .28);
+    backdrop-filter: blur(22px) saturate(1.2); -webkit-backdrop-filter: blur(22px) saturate(1.2);
+    opacity: 0; transform: translateY(40px) scale(.97);
+    animation: entrar var(--entrada) cubic-bezier(.16, 1, .3, 1) forwards,
+               salir var(--salida) ease-in var(--fin) forwards;
+  }
+  .etiqueta { font-size: 20px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--acento); margin-bottom: 10px; }
+  .titulo { font-size: 46px; font-weight: 700; line-height: 1.12; color: #141414; letter-spacing: -.01em;
+    margin-bottom: 26px; text-wrap: balance; }
+  .fila { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px 16px; margin-top: 16px; }
+  .nombre { font-size: 26px; font-weight: 600; color: #333; grid-column: 1 / 3; }
+  .pista { height: 30px; border-radius: 15px; background: rgba(0,0,0,.07); overflow: hidden; }
+  .barra { height: 100%; width: 0; border-radius: 15px; background: var(--color);
+    animation: crecer 1.1s cubic-bezier(.2, .8, .2, 1) forwards; animation-delay: var(--retraso); }
+  .valor { font-size: 30px; font-weight: 800; color: #141414; min-width: 120px; text-align: right;
+    opacity: 0; animation: aparecer .4s ease-out forwards; animation-delay: calc(var(--retraso) + .5s); }
+  .conclusion { margin-top: 26px; font-size: 27px; font-weight: 600; line-height: 1.25; color: #141414;
+    padding: 14px 18px; border-radius: 14px; border-left: 6px solid var(--acento);
+    background: color-mix(in srgb, var(--acento) 10%, transparent);
+    opacity: 0; transform: translateY(10px);
+    animation: aparecer2 .5s cubic-bezier(.16, 1, .3, 1) forwards; animation-delay: var(--retrasoC); }
+  @keyframes entrar { to { opacity: 1; transform: none } }
+  @keyframes crecer { to { width: var(--peso) } }
+  @keyframes aparecer { to { opacity: 1 } }
+  @keyframes aparecer2 { to { opacity: 1; transform: none } }
+  @keyframes salir { to { opacity: 0; transform: translateY(-18px) } }
+</style>
+
+<div class="panel">
+  <div class="etiqueta" id="etiqueta"></div>
+  <div class="titulo" id="titulo"></div>
+  <div id="filas"></div>
+  <div class="conclusion" id="conclusion"></div>
+</div>
+
+<script>
+  const d = window.DATOS || {}
+  const r = document.documentElement.style
+  const n = (v, def) => (v === undefined || v === null || v === '') ? def : Number(v)
+  const entrada = n(d.entrada, .5), salida = n(d.salida, .4), dur = n(d.duracion, 8)
+  r.setProperty('--x', n(d.x, 60) + 'px'); r.setProperty('--y', n(d.y, 760) + 'px')
+  r.setProperty('--ancho', n(d.ancho, 960) + 'px')
+  r.setProperty('--acento', d.acento || '#0F766E')
+  r.setProperty('--entrada', entrada + 's'); r.setProperty('--salida', salida + 's')
+  r.setProperty('--fin', Math.max(0, dur - salida) + 's')
+
+  const et = document.getElementById('etiqueta'); if (d.etiqueta) et.textContent = d.etiqueta; else et.remove()
+  document.getElementById('titulo').textContent = d.titulo || ''
+  const filas = document.getElementById('filas')
+  ;[[d.a, '#3a3a3a', 0], [d.b, d.acento || '#0F766E', 1]].forEach(([f, color, i]) => {
+    if (!f) return
+    const el = document.createElement('div'); el.className = 'fila'
+    el.innerHTML = `<div class="nombre"></div><div class="pista"><div class="barra"></div></div><div class="valor"></div>`
+    el.querySelector('.nombre').textContent = f.nombre || ''
+    el.querySelector('.valor').textContent = f.valor || ''
+    const b = el.querySelector('.barra')
+    b.style.setProperty('--peso', Math.max(4, Math.min(100, n(f.peso, 50))) + '%')
+    b.style.setProperty('--color', color)
+    el.style.setProperty('--retraso', (entrada * .7 + i * .55) + 's')
+    el.querySelector('.valor').style.setProperty('--retraso', (entrada * .7 + i * .55) + 's')
+    filas.appendChild(el)
+  })
+  const c = document.getElementById('conclusion')
+  if (d.conclusion) { c.textContent = d.conclusion; r.setProperty('--retrasoC', (entrada * .7 + 2.1) + 's') } else c.remove()
+</script>
