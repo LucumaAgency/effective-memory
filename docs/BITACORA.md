@@ -310,3 +310,27 @@ preview de subtítulos quemados, clips verticales con comentarios propios.
   habla (`"disposicion": "recorte"`), pendiente de decidir.
 - La fuente de los subtítulos es Montserrat SemiBold. Si no está instalada en Windows,
   libass cae a otra y se ve distinto.
+
+## 2026-10-11 · Exportar entregas a FilmCraft (ArtCraft)
+
+ArtCraft publicó FilmCraft (storytold/filmcraft, Rust, MIT/Apache, alpha) como reemplazo de
+Premiere con CLI headless y servidor MCP. Lo usamos como **capa de ajuste manual**, no como
+reemplazo del pipeline: el render final sigue saliendo de ffmpeg.
+
+`scripts/exportar_filmcraft.js <proyecto> <entrega>` escribe `entregas/vN/filmcraft/` con un
+`.fcproj` (una secuencia 9:16 por clip), más `.otio`, `.fcpxml` y `.srt` por clip. El video no
+viaja: el proyecto apunta a `meta.videoPath` y los b-roll a la copia del repo de datos en la PC
+(`--pc-base`). FilmCraft enlaza los medios al abrir.
+
+- El encuadre dinámico (`zoom`, `anclaY`, `centros`, `enfasis`) se traduce al efecto Motion:
+  `scale = (W / w9) · Z · 100` y `position = ((srcW/2 − x0)·S, (srcH/2 − y0)·S)`, con
+  `w9 = srcH·W/H`, `x0 = cx − w9/(2Z)`, `y0 = (srcH − srcH/Z)·anclaY`. Keyframes en cada centro y
+  en los cuatro puntos de cada énfasis (entrada, fin de rampa, inicio de rampa, salida).
+  Verificado contra el metraje de demo de FilmCraft: el fotograma renderizado y el recorte
+  esperado difieren 0.4/255 de media.
+- Ticks de FilmCraft: 254016000000 por segundo (la misma base que Premiere).
+- La CLI se ejecuta comando a comando (`exec`) porque los ids de ítems y clips salen de cada
+  resultado; 210 comandos tardan ~3 s. Corre en el servidor Linux sin pantalla.
+- `captions.setStyle` devuelve `null` cuando va bien: no tomar `null` como fallo.
+- Pendiente: probar en la PC que FilmCraft 0.6 en Windows abre el `.fcproj` y enlaza el MP4;
+  rótulos con EffectCraft (`.ecproj` JSON + Lottie) en vez de HTML capturado.
